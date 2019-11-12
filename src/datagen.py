@@ -1,6 +1,7 @@
 import collections
 from torch import eye, randint, int32, arange, Tensor, float32
 import torch
+
 # The (A)NP takes as input a `NPRegressionDescription` namedtuple with fields:
 #   `query`: a tuple containing ((context_x, context_y), target_x)
 #   `target_y`: a tensor containing the ground truth for the targets to be
@@ -14,7 +15,8 @@ import torch
 
 NPRegressionDescription = collections.namedtuple(
     "NPRegressionDescription",
-    ("query", "target_y", "num_total_points", "num_context_points"))
+    ("query", "target_y", "num_total_points", "num_context_points"),
+)
 
 
 class GPCurvesReader(object):
@@ -28,15 +30,17 @@ class GPCurvesReader(object):
     in our training procedure
     """
 
-    def __init__(self,
-                batch_size,
-                max_num_context,
-                x_size=1,
-                y_size=1,
-                l1_scale=0.6,
-                sigma_scale=1.0,
-                random_kernel_parameters=True,
-                testing=False):
+    def __init__(
+        self,
+        batch_size,
+        max_num_context,
+        x_size=1,
+        y_size=1,
+        l1_scale=0.6,
+        sigma_scale=1.0,
+        random_kernel_parameters=True,
+        testing=False,
+    ):
         """Creates a regression dataset of functions sampled from a GP.
 
         Args:
@@ -92,11 +96,11 @@ class GPCurvesReader(object):
         kernel = sigma_f.pow(2)[:, :, None, None] * (-0.5 * norm).exp()
 
         # Add some noise to the diagonal to make the cholesky work.
-        kernel += (sigma_noise**2) * eye(num_total_points)
+        kernel += (sigma_noise ** 2) * eye(num_total_points)
 
         return kernel
 
-    def generate_curves(self):  
+    def generate_curves(self):
         """Builds the op delivering the data.
 
         Generated functions are `float32` with x values between -2 and 2.
@@ -111,19 +115,34 @@ class GPCurvesReader(object):
         if self._testing:
             num_target = 400
             num_total_points = num_target
-            x_values = torch.arange(-2,2, 1/100).unsqueeze(0).repeat_interleave(repeats = 16 , axis=0)
+            x_values = (
+                torch.arange(-2, 2, 1 / 100)
+                .unsqueeze(0)
+                .repeat_interleave(repeats=16, axis=0)
+            )
             x_values = x_values.unsqueeze(-1)
         # During training the number of target points and their x-positions are
         # selected at random
         else:
-            num_target = randint(low=0, high=int(self._max_num_context - num_context), size=(1,), dtype=int32)
+            num_target = randint(
+                low=0,
+                high=int(self._max_num_context - num_context),
+                size=(1,),
+                dtype=int32,
+            )
             num_total_points = num_context + num_target
-            x_values = Tensor(self._batch_size, num_total_points, self._x_size).uniform_(-2,2)
+            x_values = Tensor(
+                self._batch_size, num_total_points, self._x_size
+            ).uniform_(-2, 2)
         # Set kernel parameters
         # Either choose a set of random parameters for the mini-batch
         if self._random_kernel_parameters:
-            l1 = Tensor(self._batch_size, self._y_size, self._x_size).uniform_(0.1, self._l1_scale)
-            sigma_f = Tensor(self._batch_size, self._y_size).uniform_(0.1, self._sigma_scale)
+            l1 = Tensor(self._batch_size, self._y_size, self._x_size).uniform_(
+                0.1, self._l1_scale
+            )
+            sigma_f = Tensor(self._batch_size, self._y_size).uniform_(
+                0.1, self._sigma_scale
+            )
         # Or use the same fixed parameters for all mini-batches
         else:
             l1 = eye(self._batch_size, self._y_size, self._x_size) * self._l1_scale
@@ -138,7 +157,10 @@ class GPCurvesReader(object):
 
         # Sample a curve
         # [batch_size, y_size, num_total_points, 1]
-        y_values = cholesky @ Tensor(self._batch_size, self._y_size, num_total_points, 1).normal_()
+        y_values = (
+            cholesky
+            @ Tensor(self._batch_size, self._y_size, num_total_points, 1).normal_()
+        )
 
         # [batch_size, num_total_points, y_size]
         y_values = y_values.squeeze(3).transpose(1, 2)
@@ -150,14 +172,14 @@ class GPCurvesReader(object):
 
             # Select the observations
             idx = arange(num_target)[torch.randperm(num_target)]
-            context_x = x_values[:, idx[:num_context],:]
-            context_y = y_values[:, idx[:num_context],:]
+            context_x = x_values[:, idx[:num_context], :]
+            context_y = y_values[:, idx[:num_context], :]
 
         else:
             # Select the targets which will consist of the context points as well as
             # some new target points
-            target_x = x_values[:, :num_target + num_context,:]
-            target_y = y_values[:, :num_target + num_context,:]
+            target_x = x_values[:, : num_target + num_context, :]
+            target_y = y_values[:, : num_target + num_context, :]
 
             # Select the observations
             context_x = x_values[:, :num_context, :]
@@ -169,4 +191,6 @@ class GPCurvesReader(object):
             query=query,
             target_y=target_y,
             num_total_points=target_x.shape[1],
-            num_context_points=num_context)
+            num_context_points=num_context,
+        )
+

@@ -9,7 +9,7 @@ from torch.nn import (
     ReLU,
     Linear,
     Sequential,
-) 
+)
 
 # utility methods
 # def create_batch_mlp(input, output_sizes):
@@ -17,7 +17,7 @@ from torch.nn import (
 
 #     Args:
 #     input: input tensor of shape [B,n,d_in].
-#     output_sizes: An iterable containing the output sizes of the MLP as defined 
+#     output_sizes: An iterable containing the output sizes of the MLP as defined
 #         in `basic.Linear`.
 
 #     Returns:
@@ -115,13 +115,7 @@ class Attention(object):
 	"""
 
     def __init__(
-        self,
-        rep,
-        output_sizes,
-        att_type,
-        scale=1.0,
-        normalise=True,
-        num_heads=8,
+        self, rep, output_sizes, att_type, scale=1.0, normalise=True, num_heads=8,
     ):
         """Create attention module.
 
