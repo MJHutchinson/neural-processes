@@ -9,7 +9,7 @@ from torch.nn import (
     ReLU,
     Linear,
     Sequential,
-)
+) 
 
 # utility methods
 # def create_batch_mlp(input, output_sizes):
