@@ -10,6 +10,12 @@ NPRegressionDescription = collections.namedtuple(
 class MLP(nn.Module):
     """ Defines a basic MLP network.
 
+    Usage:
+
+        test = torch.ones(2,2,8)
+        mlp = MLP(8, 3, 3, 3)
+        mlp(test)
+
     Parameters
     ----------
     in_dim : int 
@@ -28,7 +34,8 @@ class MLP(nn.Module):
         The activation function to use between layers
     """
 
-    def __init__(self, in_dim, out_dim, hid_dim, num_hid, activation=nn.ReLU):
+    def __init__(self, in_dim, out_dim, hid_dim, num_hid, activation=nn.ReLU()):
+        super(MLP, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.hid_dim = hid_dim
@@ -41,11 +48,12 @@ class MLP(nn.Module):
         # append layers with acitvation functions
         for i in range(len(sizes) - 2):
             layers.append(nn.Linear(sizes[i], sizes[i+1]))
+            layers.append(activation)
 
         # append final layer with no activations
         layers.append(nn.Linear(sizes[-2], sizes[-1]))
 
-        self.model = nn.Sequential(layers)
+        self.model = nn.Sequential(*layers)
 
     def forward(self, input):
         return self.model(input)

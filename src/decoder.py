@@ -31,12 +31,14 @@ class MLPDecoder(nn.Module):
         super(MLPDecoder, self).__init__()
         self.x_dim = x_dim
         self.z_dim = z_dim
-        self.y_dim = y_dim 
+        self.y_dim = y_dim
         self.hid_dim = hid_dim
         self.num_hid = num_hid
 
-        self.xz_to_hidden = MLP(self.x_dim + self.z_dim, self.hid_dim, self.hid_dim, self.num_hid)
-        self.hidden_to_mu  = nn.Linear(self.hid_dim, self.y_dim)
+        self.xz_to_hidden = MLP(
+            self.x_dim + self.z_dim, self.hid_dim, self.hid_dim, self.num_hid
+        )
+        self.hidden_to_mu = nn.Linear(self.hid_dim, self.y_dim)
         self.hidden_to_pre_sigma = nn.Linear(self.hid_dim, self.y_dim)
 
     def forward(self, x, z):
@@ -50,7 +52,7 @@ class MLPDecoder(nn.Module):
 
         batch_size, num_points, _ = x.size()
 
-        # one z for all the target points of a given set, expand z to 
+        # one z for all the target points of a given set, expand z to
         # be concatenated with each x from the relevant process. In the
         # future we might want multiple samples from the latent variable,
         # so may need to add another dimension (samples) to the incoming

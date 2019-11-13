@@ -9,6 +9,12 @@ class DeterministicMLPEncoder(nn.Module):
     """ Maps (x_i, y_i) pairs to a representation vector r_i using a
     MLP network.
 
+    Usage:
+        test = torch.ones(2,2,8)
+        encoder = DeterministicMLPEncoder(7, 1, 3, 3)
+        encoder.forward(test, test)
+
+
     Parameters
     ----------
     x_dim : int 
@@ -36,7 +42,9 @@ class DeterministicMLPEncoder(nn.Module):
         self.hid_dim = hid_dim
         self.num_hid = num_hid
 
-        self.model = MLP(self.x_dim + self.y_dim, self.r_dim, self.hid_dim, self.num_hid, nn.ReLU())
+        self.model = MLP(
+            self.x_dim + self.y_dim, self.r_dim, self.hid_dim, self.num_hid, nn.ReLU()
+        )
 
     def forward(self, x, y):
         """ passes a batch of context x and y throught the encoder 
@@ -74,7 +82,9 @@ class LatentMLPEncoder(nn.Module):
         self.r_dim = r_dim
         self.z_dim = z_dim
 
-        hidden_dim = int( (r_dim + z_dim) /2 ) # from the tf code - not clear why this is chosen
+        hidden_dim = int(
+            (r_dim + z_dim) / 2
+        )  # from the tf code - not clear why this is chosen
 
         self.r_to_hidden = nn.Linear(r_dim, hidden_dim)
         self.hidden_to_mu = nn.Linear(hidden_dim, z_dim)
@@ -95,5 +105,4 @@ class LatentMLPEncoder(nn.Module):
         # formulation from "Attentive Neral Processes" and "Empirical Evaluation of Neural Process Objectives"
         # Seems silly to call it log sigma in this case. Might think about switching to an actual log encoding.
         sigma = 0.1 + 0.9 * F.softplus(pre_sigma)
-
 
