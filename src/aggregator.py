@@ -11,37 +11,6 @@ from torch.nn import (
     Sequential,
 )
 
-# utility methods
-# def create_batch_mlp(input, output_sizes):
-#     """Apply MLP to the final axis of a 3D tensor (reusing already defined MLPs).
-
-#     Args:
-#     input: input tensor of shape [B,n,d_in].
-#     output_sizes: An iterable containing the output sizes of the MLP as defined
-#         in `basic.Linear`.
-
-#     Returns:
-#     tensor of shape [B,n,d_out] where d_out=output_sizes[-1]
-#     """
-#     # Get the shapes of the input and reshape to parallelise across observations
-#     batch_size, _, _ = input.shape[0], input.shape[1], input.shape[2]
-
-#     modules = []
-#     in_size = input.shape[-1]
-#     # Pass through MLP
-#     for _, size in enumerate(output_sizes[:-1]):
-#         modules.append(Linear(in_size, size))
-#         modules.append(ReLU())
-#         in_size = size.copy()
-
-#     # Last layer without a ReLu
-#     modules.append(Linear(in_size, output_sizes[-1]))
-#     mlp = Sequential(*modules)
-#     mlp.batch_size = batch_size
-#     mlp.final_output_size = output_sizes[-1]
-
-#     return mlp
-
 
 def uniform_attention(q, v):
     """Uniform attention. Equivalent to np.
@@ -80,7 +49,10 @@ def laplace_attention(q, k, v, scale, normalise):
     if normalise:
         weight_fn = Softmax()
     else:
-        weight_fn = lambda x: 1 + Tanh(x)
+
+        def weight_fn(x):
+            return 1 + Tanh(x)
+
         weights = weight_fn(unnorm_weights)  # [B,m,n]
     rep = einsum("bik,bkj->bij", weights, v)  # [B,m,d_v]
     return rep
@@ -105,14 +77,14 @@ def dot_product_attention(q, k, v, normalise):
         weight_fn = Softmax()
     else:
         weight_fn = Sigmoid()
-        weights = weight_fn(unnorm_weights)  # [B,m,n]
+    weights = weight_fn(unnorm_weights)  # [B,m,n]
     rep = einsum("bik,bkj->bij", weights, v)  # [B,m,d_v]
     return rep
 
 
 class Attention(object):
     """The Attention module.
-	"""
+        """
 
     def __init__(
         self, rep, output_sizes, att_type, scale=1.0, normalise=True, num_heads=8,
@@ -152,17 +124,17 @@ class Attention(object):
     def __call__(self, x1, x2, r):
         """Apply attention to create aggregated representation of r.
 
-		Args:
-			x1: tensor of shape [B,n1,d_x].
-			x2: tensor of shape [B,n2,d_x].
-			r: tensor of shape [B,n1,d].
-			
-		Returns:
-			tensor of shape [B,n2,d]
+                Args:
+                        x1: tensor of shape [B,n1,d_x].
+                        x2: tensor of shape [B,n2,d_x].
+                        r: tensor of shape [B,n1,d].
 
-		Raises:
-			NameError: The argument for rep/type was invalid.
-		"""
+                Returns:
+                        tensor of shape [B,n2,d]
+
+                Raises:
+                        NameError: The argument for rep/type was invalid.
+                """
         if self._rep == "identity":
             k, q = (x1, x2)
         elif self._rep == "mlp":

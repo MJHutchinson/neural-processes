@@ -1,6 +1,11 @@
 import torch
 from torch import nn
+import collections
 
+NPRegressionDescription = collections.namedtuple(
+    "NPRegressionDescription",
+    ("query", "target_y", "num_total_points", "num_context_points"),
+)
 
 class MLP(nn.Module):
     """ Defines a basic MLP network.
