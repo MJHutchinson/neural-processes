@@ -2,12 +2,24 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
+
 class AttentiveNeuralProcess(nn.Module):
     """ Implements the Neural Process in a general form.
     
     """
 
-    def __init__(self, x_dim, y_dim, r_dim, z_dim, deterministic_encoder, attention, latent_encoder, decoder, use_deterministic_path):
+    def __init__(
+        self,
+        x_dim,
+        y_dim,
+        r_dim,
+        z_dim,
+        deterministic_encoder,
+        attention,
+        latent_encoder,
+        decoder,
+        use_deterministic_path,
+    ):
         super(AttentiveNeuralProcess, self).__init__()
         self.x_dim = x_dim
         self.y_dim = y_dim
@@ -60,11 +72,11 @@ class AttentiveNeuralProcess(nn.Module):
         batch_size, num_context, y_dim = y_context.size()
         _, num_target, x_size = x_target.size()
 
-        # If we are training and have y_targets, then we want 
-        # to encode the training and context set, as we need 
+        # If we are training and have y_targets, then we want
+        # to encode the training and context set, as we need
         # the context distribution to compute the KL
-        z_mu_context , z_sigam_context = self.xy_to_z(x_context, y_context)
-        
+        z_mu_context, z_sigam_context = self.xy_to_z(x_context, y_context)
+
         q_context = Normal(z_mu_context, z_sigam_context)
 
         # If we don't have a y_target, we are are in prediction mode.
@@ -72,9 +84,9 @@ class AttentiveNeuralProcess(nn.Module):
 
         training = y_target is not None
         if training:
-            z_mu_target , z_sigam_target = self.xy_to_z(x_target, y_target)
+            z_mu_target, z_sigma_target = self.xy_to_z(x_target, y_target)
 
-            q_target = Normal(z_mu_target, z_sigam_target)
+            q_target = Normal(z_mu_target, z_sigma_target)
 
             latent_sample = q_target.sample()
 
@@ -91,7 +103,7 @@ class AttentiveNeuralProcess(nn.Module):
 
         y_target_mu, y_target_sigma = self.decoder(x_target, rep)
         y_dist = Normal(y_target_mu, y_target_sigma)
-        
+
         # TODO: Make this loss function flexible to use the vairous proposals
         # in Empirical Evaluation of Neural Process Objectives. See there for
         # details of this loss too.
@@ -99,15 +111,19 @@ class AttentiveNeuralProcess(nn.Module):
             # Log predictive probability of the observations
             log_pred = y_dist.log_prob(y_target).sum(dim=-1)
             # KL divergence between the context latent and target latent
-            kl_target_context = torch.distributions.kl_divergence(q_target, q_context).sum(dim=-1, keepdim=True).expand(-1, num_target)
+            kl_target_context = (
+                torch.distributions.kl_divergence(q_target, q_context)
+                .sum(dim=-1, keepdim=True)
+                .expand(-1, num_target)
+            )
             # prior = Normal(0, 1)
             # kl_target_prior = torch.distributions.kl_divergence(q_target, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
             # kl_context_prior = torch.distributions.kl_divergence(context, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
-            loss = -torch.mean( log_pred - kl_target_context / num_target )
+            loss = -torch.mean(log_pred - kl_target_context / num_target)
         else:
             log_pred = None
-            kl_target_context = None,
+            kl_target_context = (None,)
             loss = None
-        
+
         return y_target_mu, y_target_sigma, log_pred, kl_target_context, loss
 

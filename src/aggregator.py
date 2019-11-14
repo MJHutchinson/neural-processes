@@ -89,7 +89,16 @@ class Attention(object):
         """
 
     def __init__(
-        self, rep, att_type, x_dim, r_dim, scale=1.0, normalise=True, num_heads=8, hid_dim=None, num_hid=3,
+        self,
+        rep,
+        att_type,
+        x_dim,
+        r_dim,
+        scale=1.0,
+        normalise=True,
+        num_heads=8,
+        hid_dim=None,
+        num_hid=3,
     ):
         """Create attention module.
 
@@ -137,22 +146,28 @@ class Attention(object):
         if self._type == "uniform":
             self.attention_func = lambda q, k, r: uniform_attention(q, r)
         elif self._type == "laplace":
-            self.attention_func = lambda q, k, r: laplace_attention(q, k, r, self._scale, self._normalise)
+            self.attention_func = lambda q, k, r: laplace_attention(
+                q, k, r, self._scale, self._normalise
+            )
         elif self._type == "dot_product":
-            self.attention_func = lambda q, k, r: dot_product_attention(q, k, r, self._normalise)
+            self.attention_func = lambda q, k, r: dot_product_attention(
+                q, k, r, self._normalise
+            )
         elif self._type == "multihead":
-            self._num_heads = num_heads   
+            self._num_heads = num_heads
             self.multihead_attention = MultiheadAttention(
                 embed_dim=r_dim, num_heads=self._num_heads
             )
-            self.attention_func = lambda q, k, r: self.multihead_attention.forward(q, k, r)[0]
+            self.attention_func = lambda q, k, r: self.multihead_attention.forward(
+                q, k, r
+            )[0]
         else:
             raise NameError(
                 (
                     "'att_type' not among ['uniform','laplace','dot_product'"
                     ",'multihead']"
                 )
-            )   
+            )
 
     def __call__(self, x1, x2, r):
         """Apply attention to create aggregated representation of r.
@@ -168,7 +183,7 @@ class Attention(object):
                 Raises:
                         NameError: The argument for rep/type was invalid.
                 """
-        
+
         q = self.embed_func(x1)
         k = self.embed_func(x2)
 
