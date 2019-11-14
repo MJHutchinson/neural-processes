@@ -9,6 +9,7 @@ from torch.nn import (
     ReLU,
     Linear,
     Sequential,
+    Module
 )
 
 from src.utils import BatchMLP
@@ -84,7 +85,7 @@ def dot_product_attention(q, k, v, normalise):
     return rep
 
 
-class Attention(object):
+class Attention(Module):
     """The Attention module.
         """
 
@@ -121,7 +122,7 @@ class Attention(object):
             hid_dim : dimension of the hidden layers if using an "mlp" represantation
             num_hid : number of hidden layers to use if using an "mlp" represantation
         """
-
+        super(Attention, self).__init__()
         self._rep = rep
 
         self._type = att_type
