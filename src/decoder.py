@@ -130,4 +130,3 @@ class HomoskedasticDecoder(nn.Module):
         mu = mu.view(batch_size, num_points, self.y_dim)
 
         return mu, self.sigma * torch.ones_like(mu)
-

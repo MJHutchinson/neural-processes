@@ -1,9 +1,20 @@
 import torch
 from torch import nn
+import collections
 
+NPRegressionDescription = collections.namedtuple(
+    "NPRegressionDescription",
+    ("query", "target_y", "num_total_points", "num_context_points"),
+)
 
 class MLP(nn.Module):
     """ Defines a basic MLP network.
+
+    Usage:
+
+        test = torch.ones(2,2,8)
+        mlp = MLP(8, 3, 3, 3)
+        mlp(test)
 
     Parameters
     ----------
@@ -37,7 +48,11 @@ class MLP(nn.Module):
         # append layers with acitvation functions
         for i in range(len(sizes) - 2):
             layers.append(nn.Linear(sizes[i], sizes[i+1]))
+<<<<<<< HEAD
             layers.append(self.activation)
+=======
+            layers.append(activation)
+>>>>>>> cee11a25cc8c1678dae3725e625682587ee6bf3c
 
         # append final layer with no activations
         layers.append(nn.Linear(sizes[-2], sizes[-1]))

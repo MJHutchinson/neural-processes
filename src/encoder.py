@@ -9,6 +9,12 @@ class DeterministicEncoder(nn.Module):
     """ Maps (x_i, y_i) pairs to a representation vector r_i using a
     MLP network.
 
+    Usage:
+        test = torch.ones(2,2,8)
+        encoder = DeterministicMLPEncoder(7, 1, 3, 3)
+        encoder.forward(test, test)
+
+
     Parameters
     ----------
     x_dim : int 
@@ -124,5 +130,4 @@ class LatentEncoder(nn.Module):
         sigma = 0.1 + 0.9 * F.softplus(pre_sigma)
 
         return mu, sigma
-
-
+        
