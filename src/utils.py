@@ -24,6 +24,7 @@ class MLP(nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hid_dim, num_hid, activation=nn.ReLU()):
+        super(MLP, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.hid_dim = hid_dim
@@ -41,7 +42,7 @@ class MLP(nn.Module):
         # append final layer with no activations
         layers.append(nn.Linear(sizes[-2], sizes[-1]))
 
-        self.model = nn.Sequential(layers)
+        self.model = nn.Sequential(*layers)
 
     def forward(self, input):
         return self.model(input)
@@ -72,6 +73,7 @@ class BatchMLP(nn.Module):
     """
 
     def __init__(self, in_dim, out_dim, hid_dim, num_hid, activation=nn.ReLU()):
+        super(BatchMLP, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.hid_dim = hid_dim
@@ -89,7 +91,7 @@ class BatchMLP(nn.Module):
         # append final layer with no activations
         layers.append(nn.Linear(sizes[-2], sizes[-1]))
 
-        self.model = nn.Sequential(layers)
+        self.model = nn.Sequential(*layers)
 
     def forward(self, input):
         """ Passes the 3D tensor through the network
@@ -101,7 +103,7 @@ class BatchMLP(nn.Module):
             Shape (batch_size, num_points, output_dim)      
         """
 
-        batch_size, num_points, _ = input.shape()
+        batch_size, num_points, _ = input.size()
 
         input = input.view((batch_size * num_points, self.in_dim))
         output = self.model(input)

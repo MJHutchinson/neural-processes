@@ -2,55 +2,57 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
-class NeuralProcess(nn.Module):
+class AttentiveNeuralProcess(nn.Module):
     """ Implements the Neural Process in a general form.
     
     """
 
-    def __init__(self, x_dim, y_dim, r_dim, z_dim, encoder, aggregator, latent_encoder, decoder, use_deterministic_path):
+    def __init__(self, x_dim, y_dim, r_dim, z_dim, deterministic_encoder, attention, latent_encoder, decoder, use_deterministic_path):
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.r_dim = r_dim
         self.z_dim = z_dim
 
-        self.encoder = encoder
-        self.aggregator = aggregator
+        self.deterministic_encoder = deterministic_encoder
+        self.attention = attention
         self.latent_encoder = latent_encoder
         self.decoder = decoder
 
         self.use_deterministic_path = use_deterministic_path
 
-    def xy_to_r(self, x, y):
+    def xyx_to_r(self, x_context, y_context, x_target):
         """
-        Maps sets of (x,y) pairs to the repreentation vector r for each set of pairs.
+        Maps sets of (x_context ,y_context) sets and x_targets to the reprsentation vector r_i
+        for each pair of contexts and target.
 
         Parameters
         ----------
-        x : torch.Tensor
-            Shape (batch_size, num_points, x_dim)
+        x_context : torch.Tensor
+            Shape (batch_size, num_context_points, x_dim)
 
-        y : torch.Tensor
-            Shape (batch_size, num_points, y_dim)
+        y_context : torch.Tensor
+            Shape (batch_size, num_context_points, y_dim)
+
+        x_target : torch.Tensor
+            Shape (batch_size, num_target_points, x_dim)
 
         return : torch.Tensor
-            Shape (batch_size, r_dim)
+            Shape (batch_size, num_target_points, r_dim)
         """
-        batch_size, num_points, _ = x.size()
+        batch_size, num_context_points, y_size = y_context.size()
+        _, num_target_points, x_dim = x_target.size()
 
-        # flatten x's and y's and aggregate to go through the decoder
-        x = x.view(batch_size * num_points, self.x_dim)
-        y = y.view(batch_size * num_points, self.y_dim)
+        # map the context points to their deterministic represnetations.
+        # r_i : Shape (batch_size, num_context_points, r_dim)
+        r_i = self.deterministic_encoder(x_context, y_context)
 
-        r_i = self.encoder(x, y)
-        r_i = r_i.view(batch_size, num_points, self.r_dim)
+        # apply attention to the representations and x_targets to get a
+        # representation per target. r_j : Shape (batch_size, num_target_points r_dim)
+        r_j = self.attention(x_target, x_context, r_i)
+        return r_j
 
-        # aggregate the r_i for each batch into the overall 
-        # representation r
-        r = self.aggregator(r_i)
-        return r
-
-    def r_to_z(self, r):
-        return self.latent_encoder(r)
+    def xy_to_z(self, x, y):
+        return self.latent_encoder(x, y)
 
     def forward(self, x_context, y_context, x_target, y_target=None):
 
@@ -60,14 +62,50 @@ class NeuralProcess(nn.Module):
         # If we are training and have y_targets, then we want 
         # to encode the training and context set, as we need 
         # the context distribution to compute the KL
-        if self.training and y_target is not None:
-            r_target = self.xy_to_r(x_target, y_target)
-            z_mu_target , z_sigam_target = self.r_to_z(r_target)
+        z_mu_context , z_sigam_context = self.xy_to_z(x_context, y_context)
+        
+        q_context = Normal(z_mu_context, z_sigam_context)
 
-            r_context = self.xy_to_r(x_context, y_context)
-            z_mu_context , z_sigam_context = self.r_to_z(r_context)
+        # If we don't have a y_target, we are are in prediction mode.
+        # If we do have a y_target, we are in training mode.
+
+        training = y_target is not None
+        if training:
+            z_mu_target , z_sigam_target = self.xy_to_z(x_target, y_target)
 
             q_target = Normal(z_mu_target, z_sigam_target)
-            q_context = Normal(z_mu_context, z_sigam_context)
 
-            z_
+            latent_sample = q_target.sample()
+
+        else:
+            latent_sample = q_context.sample()
+
+        latent_sample = latent_sample.unsqueeze(dim=1).expand(-1, num_target, -1)
+
+        if self.use_deterministic_path:
+            deterministic_representation = self.xyx_to_r(x_context, y_context, x_target)
+            rep = torch.cat((deterministic_representation, latent_sample), dim=-1)
+        else:
+            rep = latent_sample
+
+        y_target_mu, y_target_sigma = self.decoder(x_target, rep)
+        
+        # TODO: Make this loss function flexible to use the vairous proposals
+        # in Empirical Evaluation of Neural Process Objectives. See there for
+        # details of this loss too.
+        if training:
+            # Log predictive probability of the observations
+            log_pred = Normal(y_target_mu, y_target_sigma).log_prob(y_target)
+            # KL divergence between the context latent and target latent
+            kl_target_context = torch.distributions.kl_divergence(q_target, q_context).sum(dim=-1, keepdim=True).expand(-1, num_target)
+            # prior = Normal(0, 1)
+            # kl_target_prior = torch.distributions.kl_divergence(q_target, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
+            # kl_context_prior = torch.distributions.kl_divergence(context, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
+            loss = -torch.mean( log_pred - kl / num_target )
+        else:
+            log_pred = None
+            kl = None,
+            loss = None
+        
+        return mu, sigma, log_pred, kl, loss
+

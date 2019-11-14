@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from src.utils import MLP, BatchMLP
 
 
-class DeterministicAttentionEncoder(nn.Module):
+class DeterministicEncoder(nn.Module):
     """ Maps (x_i, y_i) pairs to a representation vector r_i using a
     MLP network.
 
@@ -27,8 +27,8 @@ class DeterministicAttentionEncoder(nn.Module):
         The number of hidden layers to use
     """
 
-    def __init__(self, x_dim, y_dim, r_dim, attention, hid_dim=50, num_hid=3):
-        super(DeterministicAttentionEncoder, self).__init__()
+    def __init__(self, x_dim, y_dim, r_dim, hid_dim=50, num_hid=3):
+        super(DeterministicEncoder, self).__init__()
 
         self.x_dim = x_dim
         self.y_dim = y_dim
@@ -36,7 +36,6 @@ class DeterministicAttentionEncoder(nn.Module):
         self.hid_dim = hid_dim
         self.num_hid = num_hid
 
-        self.attention = attention
         self.encoder = BatchMLP(self.x_dim + self.y_dim, self.r_dim, self.hid_dim, self.num_hid, nn.ReLU())
 
     def forward(self, x, y):
@@ -53,24 +52,32 @@ class DeterministicAttentionEncoder(nn.Module):
             Shape (batch_size, num_points, r_dim) 
 
         """
-        xy = torch.cat((x, y), dim=-1)
-        r_i = self.model(xy)
-        r_i = self.attention(r_i)
+        xy_context = torch.cat((x, y), dim=-1)
+        r_i = self.encoder(xy_context)
 
         return r_i
 
 
 class LatentEncoder(nn.Module):
-    """ Maps a represnetation vector r to a Gaussian 
-    distributed latent variable.
+    """ Maps (x_i, y_i) pairs to a latent vector z using an
+    MLP network which describes a Gaussian distribution.
 
     Parameters
     ----------
-    r_dim : int
-        The dimension of the representation vector
+    x_dim : int 
+        Dimension of the x values
+    
+    y_dim : int
+        Dimension of the y values
 
     z_dim : int
-        The dimension of the latent variable z
+        The dimension of the representation vector
+
+    hid_dim : int
+        Dimension of the hidden layers
+
+    num_hid : int
+        The number of hidden layers to use
 
     TODO: possibility of making this mapping more complex
     """
@@ -80,20 +87,35 @@ class LatentEncoder(nn.Module):
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.z_dim = z_dim
+        self.hid_dim = hid_dim
+        self.num_hid = num_hid
 
-        self.xy_to_hidden = BatchMLP(self.x_dim + self.y_dim, hid_dim, num_hid)
+        self.xy_to_r_i = BatchMLP(x_dim + y_dim, hid_dim, hid_dim, num_hid)
+        self.r_to_hidden = nn.Linear(hid_dim, hid_dim)
         self.hidden_to_mu = nn.Linear(hid_dim, z_dim)
         self.hidden_to_pre_sigma = nn.Linear(hid_dim, z_dim)
 
-    def forward(self, r):
+    def forward(self, x, y):
         """
-        r : torch.Tensor
-            Shape (batch_size, r_dim)
+        x : torch.Tensor
+            Shape (batch_size, num_points, x_dim)
+
+        y : torch.Tensor
+            Shape (batch_size, num_points, y_dim)
 
         return : torch.Tensor, torch.Tensor
             Shape (batch_size, z_dim), (batch_size, z_dim)
         """
-        hidden = torch.relu(self.xy_to_hidden(r))
+
+        # concat the xs and ys to input to the encoder
+        xy = torch.cat((x, y), dim=-1)
+
+        # map the inputs to the encoding per point r_i
+        r_i = self.xy_to_r_i(xy)
+        # take the average of the points representations per context set
+        r = torch.mean(r_i, dim=1)
+        # map the represnetations to the mus and sigmas
+        hidden = F.relu(self.r_to_hidden(r))
         mu = self.hidden_to_mu(hidden)
         pre_sigma = self.hidden_to_pre_sigma(hidden)
 
