@@ -11,6 +11,8 @@ from torch.nn import (
     Sequential,
 )
 
+from src.utils import BatchMLP
+
 
 def uniform_attention(q, v):
     """Uniform attention. Equivalent to np.
@@ -87,7 +89,16 @@ class Attention(object):
         """
 
     def __init__(
-        self, rep, output_sizes, att_type, scale=1.0, normalise=True, num_heads=8,
+        self,
+        rep,
+        att_type,
+        x_dim,
+        r_dim,
+        scale=1.0,
+        normalise=True,
+        num_heads=8,
+        hid_dim=None,
+        num_hid=3,
     ):
         """Create attention module.
 
@@ -97,29 +108,66 @@ class Attention(object):
         Args:
             rep: transformation to apply to contexts before computing attention. 
                 One of: ['identity','mlp'].
-            output_sizes: list of number of hidden units per layer of mlp.
-                Used only if rep == 'mlp'.
             att_type: type of attention. One of the following:
                 ['uniform','laplace','dot_product','multihead']
+            x_dim : dimension of the x vectors
+            r_dim : dimension of the incoming representation vectors
             batch_mlp: network class of batch mlp network, constructed by create_batch_mlp
             scale: scale of attention.
             normalise: Boolean determining whether to:
                 1. apply softmax to weights so that they sum to 1 across context pts or
                 2. apply custom transformation to have weights in [0,1].
             num_heads: number of heads for multihead.
+            hid_dim : dimension of the hidden layers if using an "mlp" represantation
+            num_hid : number of hidden layers to use if using an "mlp" represantation
         """
 
         self._rep = rep
-
-        self._output_sizes = output_sizes
 
         self._type = att_type
 
         self._scale = scale
         self._normalise = normalise
-        if self._type == "multihead":
+
+        if self._rep == "identity":
+            self.embed_func = lambda x: x
+        elif self._rep == "mlp":
+            # Im assuming the input/output of the encoding should be the same size?
+            # Also assuming if you dont specify a hidden dim just set it to the rep size
+            if hid_dim == None:
+                hid_dim = r_dim
+            self.batch_mlp = BatchMLP(x_dim, hid_dim, hid_dim, num_hid)
+            # self.batch_mlp = create_batch_mlp(test, output_sizes = [2])
+
+            self.embed_func = lambda x: self.batch_mlp(x)
+        else:
+            raise NameError("'rep' not among ['identity','mlp']")
+
+        if self._type == "uniform":
+            self.attention_func = lambda q, k, r: uniform_attention(q, r)
+        elif self._type == "laplace":
+            self.attention_func = lambda q, k, r: laplace_attention(
+                q, k, r, self._scale, self._normalise
+            )
+        elif self._type == "dot_product":
+            self.attention_func = lambda q, k, r: dot_product_attention(
+                q, k, r, self._normalise
+            )
+        elif self._type == "multihead":
             self._num_heads = num_heads
-        # self.batch_mlp = create_batch_mlp(test, output_sizes = [2])
+            self.multihead_attention = MultiheadAttention(
+                embed_dim=r_dim, num_heads=self._num_heads
+            )
+            self.attention_func = lambda q, k, r: self.multihead_attention.forward(
+                q, k, r
+            )[0]
+        else:
+            raise NameError(
+                (
+                    "'att_type' not among ['uniform','laplace','dot_product'"
+                    ",'multihead']"
+                )
+            )
 
     def __call__(self, x1, x2, r):
         """Apply attention to create aggregated representation of r.
@@ -135,33 +183,10 @@ class Attention(object):
                 Raises:
                         NameError: The argument for rep/type was invalid.
                 """
-        if self._rep == "identity":
-            k, q = (x1, x2)
-        elif self._rep == "mlp":
-            # Pass through MLP
-            # TODO: integrate with Michael's MLP
-            k = self.batch_mlp(x1, self._output_sizes, "attention")
-            q = self.batch_mlp(x2, self._output_sizes, "attention")
-        else:
-            raise NameError("'rep' not among ['identity','mlp']")
 
-        if self._type == "uniform":
-            rep = uniform_attention(q, r)
-        elif self._type == "laplace":
-            rep = laplace_attention(q, k, r, self._scale, self._normalise)
-        elif self._type == "dot_product":
-            rep = dot_product_attention(q, k, r, self._normalise)
-        elif self._type == "multihead":
-            multihead_attention = MultiheadAttention(
-                embed_dim=r.shape[-1], num_heads=self._num_heads
-            )
-            rep, _ = multihead_attention.forward(q, k, r)
-        else:
-            raise NameError(
-                (
-                    "'att_type' not among ['uniform','laplace','dot_product'"
-                    ",'multihead']"
-                )
-            )
+        q = self.embed_func(x1)
+        k = self.embed_func(x2)
+
+        rep = self.attention_func(q, k, r)
 
         return rep
