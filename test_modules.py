@@ -2,6 +2,7 @@ from torch.distributions import Normal
 
 from src.decoder import *
 from src.encoder import *
+from src.aggregator import *
 from src.neural_process import *
 
 x_dim = 2
@@ -12,7 +13,7 @@ y_dim = 5
 h_dim = 10
 num_h = 3
 
-batches = 10
+batches = 100
 num_target = 10
 num_context = 20
 
@@ -28,6 +29,14 @@ R_target = EncD(X_target, Y_target)
 
 print(f'Deterministic encoder output shape: {R_context.size()}, should be {(batches, num_context, r_dim)}')
 print(f'Deterministic encoder output shape: {R_target.size()}, should be {(batches, num_target, r_dim)}')
+
+AttenIden = Attention('identity', 'uniform', x_dim, r_dim)
+
+R_context_atten_iden = AttenIden(X_context, X_target, R_context)
+R_target_atten_iden = AttenIden(X_target, X_target, R_target)
+
+print(f'Identity attention output shape: {R_context_atten_iden.size()}, should be {(batches, num_context, r_dim)}')
+print(f'Identity attention output shape: {R_target_atten_iden.size()}, should be {(batches, num_target, r_dim)}')
 
 EncL = LatentEncoder(x_dim, y_dim, z_dim, h_dim, num_h)
 
@@ -61,4 +70,13 @@ Y_pred_target_Hom = HomD(X_target, Rep_target)
 print(f'Hom decoder output shape: {Y_pred_context_Hom[0].size(), Y_pred_context_Hom[1].size()}, should be {(batches, num_context, y_dim)}')
 print(f'Hom decoder output shape: {Y_pred_target_Hom[0].size(), Y_pred_target_Hom[1].size()}, should be {(batches, num_target, y_dim)}')
 
-ANP = AttentiveNeuralProcess(x_dim, y_dim, r_dim, z_dim, EncD, , EncL, HetD, True)
+Atten_ANP = Attention('mlp', 'multihead', x_dim, r_dim, num_heads=r_dim)
+
+ANP_NP = AttentiveNeuralProcess(x_dim, y_dim, r_dim, z_dim, EncD, AttenIden, EncL, HetD, True)
+ANP_ANP = AttentiveNeuralProcess(x_dim, y_dim, r_dim, z_dim, EncD, Atten_ANP, EncL, HomD, True)
+
+Y_pred_ANP_Iden = ANP_NP(X_context, Y_context, X_target, Y_target)
+Y_pred_ANP_ANP = ANP_ANP(X_context, Y_context, X_target, Y_target)
+
+print(f'ANP_Iden output: {[r.size() for r in Y_pred_ANP_Iden]}')
+print(f'ANP_ANP output: {[r.size() for r in Y_pred_ANP_ANP]}')

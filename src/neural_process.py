@@ -8,6 +8,7 @@ class AttentiveNeuralProcess(nn.Module):
     """
 
     def __init__(self, x_dim, y_dim, r_dim, z_dim, deterministic_encoder, attention, latent_encoder, decoder, use_deterministic_path):
+        super(AttentiveNeuralProcess, self).__init__()
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.r_dim = r_dim
@@ -89,23 +90,24 @@ class AttentiveNeuralProcess(nn.Module):
             rep = latent_sample
 
         y_target_mu, y_target_sigma = self.decoder(x_target, rep)
+        y_dist = Normal(y_target_mu, y_target_sigma)
         
         # TODO: Make this loss function flexible to use the vairous proposals
         # in Empirical Evaluation of Neural Process Objectives. See there for
         # details of this loss too.
         if training:
             # Log predictive probability of the observations
-            log_pred = Normal(y_target_mu, y_target_sigma).log_prob(y_target)
+            log_pred = y_dist.log_prob(y_target).sum(dim=-1)
             # KL divergence between the context latent and target latent
             kl_target_context = torch.distributions.kl_divergence(q_target, q_context).sum(dim=-1, keepdim=True).expand(-1, num_target)
             # prior = Normal(0, 1)
             # kl_target_prior = torch.distributions.kl_divergence(q_target, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
             # kl_context_prior = torch.distributions.kl_divergence(context, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
-            loss = -torch.mean( log_pred - kl / num_target )
+            loss = -torch.mean( log_pred - kl_target_context / num_target )
         else:
             log_pred = None
-            kl = None,
+            kl_target_context = None,
             loss = None
         
-        return mu, sigma, log_pred, kl, loss
+        return y_target_mu, y_target_sigma, log_pred, kl_target_context, loss
 
