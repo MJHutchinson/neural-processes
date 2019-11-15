@@ -123,7 +123,7 @@ class BatchMLP(nn.Module):
         return output.view(batch_size, num_points, self.out_dim)
 
 
-def plot_functions(target_x, target_y, context_x, context_y, pred_y, std):
+def plot_functions(target_x, target_y, context_x, context_y, pred_y, std_y):
     """Plots the predicted mean and variance and the context points.
 
     DISCLAIMER: not my own code.
@@ -149,8 +149,8 @@ def plot_functions(target_x, target_y, context_x, context_y, pred_y, std):
     plt.plot(context_x[0], context_y[0], "ko", markersize=10)
     plt.fill_between(
         target_x[0, :, 0],
-        pred_y.data[0, :, 0] - std.data[0, :, 0],
-        pred_y.data[0, :, 0] + std.data[0, :, 0],
+        pred_y.data[0, :, 0] - std_y.data[0, :, 0],
+        pred_y.data[0, :, 0] + std_y.data[0, :, 0],
         alpha=0.2,
         facecolor="#65c9f7",
         interpolate=True,
