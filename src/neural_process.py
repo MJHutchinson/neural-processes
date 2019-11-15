@@ -10,10 +10,6 @@ class AttentiveNeuralProcess(nn.Module):
 
     def __init__(
         self,
-        x_dim,
-        y_dim,
-        r_dim,
-        z_dim,
         deterministic_encoder,
         attention,
         latent_encoder,
@@ -21,11 +17,6 @@ class AttentiveNeuralProcess(nn.Module):
         use_deterministic_path,
     ):
         super(AttentiveNeuralProcess, self).__init__()
-        self.x_dim = x_dim
-        self.y_dim = y_dim
-        self.r_dim = r_dim
-        self.z_dim = z_dim
-
         self.deterministic_encoder = deterministic_encoder
         self.attention = attention
         self.latent_encoder = latent_encoder
@@ -53,7 +44,7 @@ class AttentiveNeuralProcess(nn.Module):
             Shape (batch_size, num_target_points, r_dim)
         """
         batch_size, num_context_points, y_size = y_context.size()
-        _, num_target_points, x_dim = x_target.size()
+        _, num_target_points, _ = x_target.size()
 
         # map the context points to their deterministic represnetations.
         # r_i : Shape (batch_size, num_context_points, r_dim)
@@ -69,7 +60,7 @@ class AttentiveNeuralProcess(nn.Module):
 
     def forward(self, x_context, y_context, x_target, y_target=None):
 
-        batch_size, num_context, y_dim = y_context.size()
+        batch_size, num_context, _ = y_context.size()
         _, num_target, x_size = x_target.size()
 
         # If we are training and have y_targets, then we want
