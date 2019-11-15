@@ -97,6 +97,8 @@ class LatentEncoder(nn.Module):
         self.num_hid = num_hid
 
         self.xy_to_r_i = BatchMLP(x_dim + y_dim, hid_dim, hid_dim, num_hid)
+        
+        intermediate_dim = int((self.hid_dim + self.z_dim)/2)
         self.r_to_hidden = nn.Linear(hid_dim, hid_dim)
         self.hidden_to_mu = nn.Linear(hid_dim, z_dim)
         self.hidden_to_pre_sigma = nn.Linear(hid_dim, z_dim)

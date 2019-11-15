@@ -72,8 +72,8 @@ print(f'Hom decoder output shape: {Y_pred_target_Hom[0].size(), Y_pred_target_Ho
 
 Atten_ANP = Attention('mlp', 'multihead', x_dim, r_dim, num_heads=r_dim)
 
-ANP_NP = AttentiveNeuralProcess(x_dim, y_dim, r_dim, z_dim, EncD, AttenIden, EncL, HetD, True)
-ANP_ANP = AttentiveNeuralProcess(x_dim, y_dim, r_dim, z_dim, EncD, Atten_ANP, EncL, HomD, True)
+ANP_NP = AttentiveNeuralProcess(EncD, AttenIden, EncL, HetD, True)
+ANP_ANP = AttentiveNeuralProcess(EncD, Atten_ANP, EncL, HomD, True)
 
 Y_pred_ANP_Iden = ANP_NP(X_context, Y_context, X_target, Y_target)
 Y_pred_ANP_ANP = ANP_ANP(X_context, Y_context, X_target, Y_target)

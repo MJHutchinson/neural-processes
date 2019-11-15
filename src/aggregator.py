@@ -137,7 +137,7 @@ class Attention(Module):
             # Also assuming if you dont specify a hidden dim just set it to the rep size
             if hid_dim == None:
                 hid_dim = r_dim
-            self.batch_mlp = BatchMLP(x_dim, hid_dim, hid_dim, num_hid)
+            self.batch_mlp = BatchMLP(x_dim, r_dim, hid_dim, num_hid)
             # self.batch_mlp = create_batch_mlp(test, output_sizes = [2])
 
             self.embed_func = lambda x: self.batch_mlp(x)
@@ -160,8 +160,8 @@ class Attention(Module):
                 embed_dim=r_dim, num_heads=self._num_heads
             )
             self.attention_func = lambda q, k, r: self.multihead_attention.forward(
-                q, k, r
-            )[0]
+                q.transpose(0, 1), k.transpose(0, 1), r.transpose(0, 1)
+            )[0].transpose(0, 1)
         else:
             raise NameError(
                 (
@@ -176,10 +176,10 @@ class Attention(Module):
                 Args:
                         x1: tensor of shape [B,n1,d_x].
                         x2: tensor of shape [B,n2,d_x].
-                        r: tensor of shape [B,n1,d].
+                        r: tensor of shape [B,n2,d].
 
                 Returns:
-                        tensor of shape [B,n2,d]
+                        tensor of shape [B,n1,d]
 
                 Raises:
                         NameError: The argument for rep/type was invalid.
