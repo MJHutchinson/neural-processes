@@ -65,7 +65,6 @@ def train(
         loss.backward()
         optimizer.step()
 
-        print("ITERATION ", epoch, "LOSS ", loss)
 
         if epoch % PLOT_AFTER == 0:
             data_test = datagen_test.generate_curves()
@@ -88,7 +87,7 @@ def train(
                 iter=epoch,
             )
             print(
-                f"log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
+                f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
             )
 
     return y_target_mu, y_target_sigma, log_pred, kl_target_context, loss

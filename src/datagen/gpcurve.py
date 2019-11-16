@@ -283,7 +283,7 @@ class MaternGPCurvesReader(GPCurvesReader):
             self._y_size,
             self._x_size,
             self._l1_scale,
-            self._sigma_scale,
+            self._sigma_scalle,
         )
         return l1, sigma_f
 
@@ -303,6 +303,6 @@ class MaternGPCurvesReader(GPCurvesReader):
             The kernel, a float tensor of shape
             [B, y_size, num_total_points, num_total_points].
         """
-        kernel = matern_kernel(self, xdata, l1, sigma_f, sigma_noise=2e-2)
+        kernel = matern_kernel(xdata, self.nu, l1, sigma_f, sigma_noise=2e-2)
 
         return kernel
