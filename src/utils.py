@@ -154,6 +154,7 @@ def plot_functions(
         predicted std dev of the y values at the target points in target_x.
     """
     # Plot everything
+    plt.figure()
     plt.plot(target_x[0], pred_y[0].data, "b", linewidth=2)
     plt.plot(
         target_x[0], target_y[0], "k:", linewidth=2

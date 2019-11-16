@@ -1,7 +1,15 @@
 from src.utils import plot_functions
 
 
-def train(model, hyperparameters, datagen, optimizer, save=False, experiment_name=None):
+def train(
+    model,
+    hyperparameters,
+    datagen,
+    datagen_test,
+    optimizer,
+    save=False,
+    experiment_name=None,
+):
     """
     Trains the NP, given hyperparameters and the anp
 
@@ -60,6 +68,14 @@ def train(model, hyperparameters, datagen, optimizer, save=False, experiment_nam
         print("ITERATION ", epoch, "LOSS ", loss)
 
         if epoch % PLOT_AFTER == 0:
+            data_test = datagen_test.generate_curves()
+            x_context = data_test.query[0][0].contiguous()
+            y_context = data_test.query[0][1].contiguous()
+            x_target = data_test.query[1].contiguous()
+            y_target = data_test.target_y.contiguous()
+            y_target_mu, y_target_sigma, _, _, _ = model.forward(
+                x_context, y_context, x_target, y_target
+            )
             plot_functions(
                 x_target,
                 y_target,
@@ -68,8 +84,8 @@ def train(model, hyperparameters, datagen, optimizer, save=False, experiment_nam
                 y_target_mu,
                 y_target_sigma,
                 save=save,
-                experiment_name=experiment_name=,
-                iter=epoch
+                experiment_name=experiment_name,
+                iter=epoch,
             )
             print(
                 f"log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"

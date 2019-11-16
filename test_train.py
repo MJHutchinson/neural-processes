@@ -10,8 +10,8 @@ MAX_CONTEXT_POINTS = 16
 random_kernel_parameters = True
 BATCH_SIZE = 16
 hyperparameters = {
-    "EPOCHS" : 1000000,
-    "PLOT_AFTER": 10000
+    "EPOCHS" : 10000,
+    "PLOT_AFTER": 1000
 }
 # Sizes of the layers of the MLPs for the encoders and decoder
 # The final output layer of the decoder outputs two values, one for the mean and
@@ -33,6 +33,10 @@ datagen = RBFGPCurvesReader(
     batch_size=BATCH_SIZE, max_num_context=MAX_CONTEXT_POINTS, random_kernel_parameters=random_kernel_parameters
 )
 
-y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, optimizer, save=True, experiment_name='anp')
+# Test dataset
+datagen_test = RBFGPCurvesReader(
+    batch_size=1, max_num_context=MAX_CONTEXT_POINTS, testing=True, random_kernel_parameters=random_kernel_parameters)
+
+y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, datagen_test, optimizer, save=True, experiment_name='anp')
 
 print('FINISHED')
