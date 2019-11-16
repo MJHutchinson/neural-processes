@@ -1,4 +1,4 @@
-from src.datagen.gpcurve import RBFGPCurvesReader
+from src.datagen.gpcurve import MaternGPCurvesReader
 from src.decoder import HeteroskedasticDecoder
 from src.encoder import LatentEncoder, DeterministicEncoder
 from src.aggregator import Attention
@@ -29,14 +29,14 @@ att = Attention('mlp','multihead', x_dim, r_dim, hid_dim=hid_dim, num_hid=num_hi
 model = AttentiveNeuralProcess(detencoder, att, latencoder, decoder, True)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-datagen = RBFGPCurvesReader(
+datagen = MaternGPCurvesReader(
     batch_size=BATCH_SIZE, max_num_context=MAX_CONTEXT_POINTS, random_kernel_parameters=random_kernel_parameters
 )
 
 # Test dataset
-datagen_test = RBFGPCurvesReader(
+datagen_test = MaternGPCurvesReader(
     batch_size=1, max_num_context=MAX_CONTEXT_POINTS, testing=True, random_kernel_parameters=random_kernel_parameters)
 
-y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, datagen_test, optimizer, save=True, experiment_name='anp')
+y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, datagen_test, optimizer, save=True, experiment_name='anp_matern_gp')
 
 print('FINISHED')

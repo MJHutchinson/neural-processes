@@ -283,7 +283,7 @@ class MaternGPCurvesReader(GPCurvesReader):
             self._y_size,
             self._x_size,
             self._l1_scale,
-            self._sigma_scale,
+            self._sigma_scalle,
         )
         return l1, sigma_f
 
