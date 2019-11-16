@@ -1,7 +1,7 @@
 from src.utils import plot_functions
 
 
-def train(model, hyperparameters, datagen, optimizer):
+def train(model, hyperparameters, datagen, optimizer, save=False, experiment_name=None):
     """
     Trains the NP, given hyperparameters and the anp
 
@@ -38,8 +38,8 @@ def train(model, hyperparameters, datagen, optimizer):
         Shape (1,)
     """
 
-    EPOCHS = hyperparameters['EPOCHS']
-    PLOT_AFTER = hyperparameters['PLOT_AFTER']
+    EPOCHS = hyperparameters["EPOCHS"]
+    PLOT_AFTER = hyperparameters["PLOT_AFTER"]
 
     for epoch in range(EPOCHS):
         # Train dataset
@@ -48,17 +48,32 @@ def train(model, hyperparameters, datagen, optimizer):
         y_context = data_train.query[0][1].contiguous()
         x_target = data_train.query[1].contiguous()
         y_target = data_train.target_y.contiguous()
-        
+
         optimizer.zero_grad()
-        
-        y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = model.forward(x_context, y_context, x_target, y_target)
+
+        y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = model.forward(
+            x_context, y_context, x_target, y_target
+        )
         loss.backward()
         optimizer.step()
-        
-        print('ITERATION ', epoch, "LOSS ", loss)
+
+        print("ITERATION ", epoch, "LOSS ", loss)
 
         if epoch % PLOT_AFTER == 0:
-            plot_functions(x_target, y_target, x_context, y_context, y_target_mu, y_target_sigma)
+            plot_functions(
+                x_target,
+                y_target,
+                x_context,
+                y_context,
+                y_target_mu,
+                y_target_sigma,
+                save=save,
+                experiment_name=experiment_name=,
+                iter=epoch
+            )
+            print(
+                f"log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
+            )
 
     return y_target_mu, y_target_sigma, log_pred, kl_target_context, loss
 

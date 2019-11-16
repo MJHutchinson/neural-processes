@@ -10,8 +10,8 @@ MAX_CONTEXT_POINTS = 16
 random_kernel_parameters = True
 BATCH_SIZE = 16
 hyperparameters = {
-    "EPOCHS" : 100,
-    "PLOT_AFTER": 10
+    "EPOCHS" : 1000000,
+    "PLOT_AFTER": 10000
 }
 # Sizes of the layers of the MLPs for the encoders and decoder
 # The final output layer of the decoder outputs two values, one for the mean and
@@ -27,12 +27,12 @@ latencoder = LatentEncoder(x_dim, y_dim, z_dim, hid_dim=hid_dim, num_hid=num_hid
 decoder = HeteroskedasticDecoder(x_dim, r_dim + z_dim, y_dim, hid_dim=hid_dim, num_hid=2)
 att = Attention('mlp','multihead', x_dim, r_dim, hid_dim=hid_dim, num_hid=num_hid)
 model = AttentiveNeuralProcess(detencoder, att, latencoder, decoder, True)
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 datagen = RBFGPCurvesReader(
     batch_size=BATCH_SIZE, max_num_context=MAX_CONTEXT_POINTS, random_kernel_parameters=random_kernel_parameters
 )
 
-y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, optimizer)
+y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train(model, hyperparameters, datagen, optimizer, save=True, experiment_name='anp')
 
 print('FINISHED')

@@ -123,7 +123,17 @@ class BatchMLP(nn.Module):
         return output.view(batch_size, num_points, self.out_dim)
 
 
-def plot_functions(target_x, target_y, context_x, context_y, pred_y, std_y):
+def plot_functions(
+    target_x,
+    target_y,
+    context_x,
+    context_y,
+    pred_y,
+    std_y,
+    save=False,
+    experiment_name=None,
+    iter=None,
+):
     """Plots the predicted mean and variance and the context points.
 
     DISCLAIMER: not my own code.
@@ -145,7 +155,9 @@ def plot_functions(target_x, target_y, context_x, context_y, pred_y, std_y):
     """
     # Plot everything
     plt.plot(target_x[0], pred_y[0].data, "b", linewidth=2)
-    plt.plot(target_x[0], target_y[0], "k:", linewidth=2) # the .data converts it back to tensor
+    plt.plot(
+        target_x[0], target_y[0], "k:", linewidth=2
+    )  # the .data converts it back to tensor
     plt.plot(context_x[0], context_y[0], "ko", markersize=10)
     plt.fill_between(
         target_x[0, :, 0],
@@ -162,4 +174,8 @@ def plot_functions(target_x, target_y, context_x, context_y, pred_y, std_y):
     plt.ylim([-2, 2])
     plt.grid("off")
     plt.gca()
-    plt.show()
+
+    if save:
+        plt.savefig("results/{}/{}.png".format(experiment_name, iter))
+    else:
+        plt.show()
