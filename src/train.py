@@ -1,4 +1,5 @@
 from src.utils import plot_functions
+from torch import gather
 
 
 def train(
@@ -53,9 +54,13 @@ def train(
         # Train dataset
         data_train = datagen.generate_curves()
         x_context = data_train.query[0][0].contiguous()
+        x_context, x_context_sorted_indices = x_context.sort(1)
         y_context = data_train.query[0][1].contiguous()
+        y_context = gather(y_context, 1, x_context_sorted_indices)
         x_target = data_train.query[1].contiguous()
+        x_target, x_target_sorted_indices = x_target.sort(1)
         y_target = data_train.target_y.contiguous()
+        y_target = gather(y_target, 1, x_target_sorted_indices)
 
         optimizer.zero_grad()
 
@@ -67,6 +72,17 @@ def train(
 
 
         if epoch % PLOT_AFTER == 0:
+            plot_functions(
+                x_target,
+                y_target,
+                x_context,
+                y_context,
+                y_target_mu,
+                y_target_sigma,
+                save=save,
+                experiment_name=experiment_name + "_train",
+                iter=epoch,
+            )
             data_test = datagen_test.generate_curves()
             x_context = data_test.query[0][0].contiguous()
             y_context = data_test.query[0][1].contiguous()

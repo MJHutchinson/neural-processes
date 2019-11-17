@@ -57,7 +57,7 @@ class HeteroskedasticDecoder(nn.Module):
         input = torch.cat((x, rep), dim=1)
 
         # pass the state through the decoder to get output
-        hidden = F.relu(self.x_rep_to_hidden(input))
+        hidden = nn.functional.relu(self.x_rep_to_hidden(input))
         mu = self.hidden_to_mu(hidden)
         pre_sigma = self.hidden_to_pre_sigma(hidden)
 
