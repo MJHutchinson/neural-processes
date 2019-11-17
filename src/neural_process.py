@@ -93,13 +93,13 @@ class AttentiveNeuralProcess(nn.Module):
             rep = latent_sample
 
         y_target_mu, y_target_sigma = self.decoder(x_target, rep)
-        y_dist = Normal(y_target_mu, y_target_sigma)
 
         # TODO: Make this loss function flexible to use the vairous proposals
         # in Empirical Evaluation of Neural Process Objectives. See there for
         # details of this loss too.
         if training:
             # Log predictive probability of the observations
+            y_dist = Normal(y_target_mu, y_target_sigma)
             log_pred = y_dist.log_prob(y_target).sum(dim=-1)
             # KL divergence between the context latent and target latent
             kl_target_context = (
