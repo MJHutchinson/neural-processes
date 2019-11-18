@@ -106,3 +106,4 @@ venv.bak/
 # VSCode config files
 .vscode
 *.png
+*.pdf
