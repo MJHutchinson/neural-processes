@@ -145,7 +145,7 @@ class GPCurvesReader(object):
             target_y=target_y,
             num_total_points=target_x.shape[1],
             num_context_points=num_context,
-        )
+        ), params
 
 
 class RBFGPCurvesReader(GPCurvesReader):

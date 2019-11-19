@@ -5,8 +5,11 @@ from stheno.torch import EQ
 
 from src.utils import kernal_interpolate
 
-x = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
-y = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
+# x = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
+# y = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
+
+x = torch.tensor([1.,2.,3.,6.,10.]).unsqueeze(0).unsqueeze(-1)
+y = torch.tensor([5.,6.,4.,3.,7.]).unsqueeze(0).unsqueeze(-1)
 
 y = torch.cat(
             (
@@ -16,7 +19,7 @@ y = torch.cat(
             dim=2
         )
 
-kernal = EQ() > 0.1
+kernal = EQ() > .5
 
 x_grid = torch.linspace(0, 11, 1000).unsqueeze(0).unsqueeze(-1)
 

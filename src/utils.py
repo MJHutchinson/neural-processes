@@ -1,6 +1,8 @@
-import torch
-from torch import nn
+import os
 import collections
+
+import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 
 NPRegressionDescription = collections.namedtuple(
@@ -123,7 +125,7 @@ class BatchMLP(nn.Module):
         return output.view(batch_size, num_points, self.out_dim)
 
 
-def plot_functions(
+def plot_function(
     target_x,
     target_y,
     context_x,
@@ -132,10 +134,12 @@ def plot_functions(
     std_y,
     save=False,
     show=False,
-    experiment_name=None,
-    iter=None,
+    dir=None,
+    name=None,
 ):
     """Plots the predicted mean and variance and the context points.
+
+    ONLY plots the first function given.
 
     DISCLAIMER: not my own code.
     Credits to: https://github.com/deepmind/neural-processes/blob/master/attentive_neural_process.ipynb
@@ -177,15 +181,169 @@ def plot_functions(
     plt.grid("off")
     plt.gca()
 
+    file = os.path.join(dir, name)
+
     if save:
-        plt.savefig("results/{}/{}.png".format(experiment_name, iter))
+        plt.savefig(file + '.pdf')
+        plt.savefig(file + '.png')
+        plt.close()
+    elif show:
+        plt.show()
+
+def plot_function(
+    target_x,
+    target_y,
+    context_x,
+    context_y,
+    pred_y,
+    std_y,
+    save=False,
+    show=False,
+    dir=None,
+    name=None,
+):
+    """Plots the predicted mean and variance and the context points.
+
+    ONLY plots the first function given.
+
+    DISCLAIMER: not my own code.
+    Credits to: https://github.com/deepmind/neural-processes/blob/master/attentive_neural_process.ipynb
+
+    Args: 
+    target_x: An array of shape [B,num_targets,1] that contains the
+        x values of the target points.
+    target_y: An array of shape [B,num_targets,1] that contains the
+        y values of the target points.
+    context_x: An array of shape [B,num_contexts,1] that contains 
+        the x values of the context points.
+    context_y: An array of shape [B,num_contexts,1] that contains 
+        the y values of the context points.
+    pred_y: An array of shape [B,num_targets,1] that contains the
+        predicted means of the y values at the target points in target_x.
+    std: An array of shape [B,num_targets,1] that contains the
+        predicted std dev of the y values at the target points in target_x.
+    """
+    # Plot everything
+    plt.figure()
+    plt.plot(target_x[0], pred_y[0].data, "b", linewidth=2)
+    plt.plot(
+        target_x[0], target_y[0], "k:", linewidth=2
+    )  # the .data converts it back to tensor
+    plt.plot(context_x[0], context_y[0], "ko", markersize=10)
+    plt.fill_between(
+        target_x[0, :, 0],
+        pred_y.data[0, :, 0] - std_y.data[0, :, 0],
+        pred_y.data[0, :, 0] + std_y.data[0, :, 0],
+        alpha=0.2,
+        facecolor="#65c9f7",
+        interpolate=True,
+    )
+
+    # Make the plot pretty
+    plt.yticks([-2, 0, 2], fontsize=16)
+    plt.xticks([-2, 0, 2], fontsize=16)
+    plt.ylim([-2, 2])
+    plt.grid("off")
+    plt.gca()
+
+    file = os.path.join(dir, name)
+
+    if save:
+        plt.savefig(file + '.pdf')
+        plt.savefig(file + '.png')
+        plt.close()
     elif show:
         plt.show()
 
 
-def kernal_interpolate(values, value_locations, target_locations, kernal):
+def plot_compare_processes_gp(
+    target_x,
+    target_y,
+    context_x,
+    context_y,
+    mean_y,
+    std_y,
+    mean_gp,
+    std_gp,
+    save=False,
+    show=False,
+    dir=None,
+    name=None,
+):
+    """Plots the predicted mean and variance and the context points.
+
+    ONLY plots the first function given.
+
+    DISCLAIMER: not my own code.
+    Credits to: https://github.com/deepmind/neural-processes/blob/master/attentive_neural_process.ipynb
+
+    Args: 
+    target_x: An array of shape [num_targets,1] that contains the
+        x values of the target points.
+    target_y: An array of shape [num_targets,1] that contains the
+        y values of the target points.
+    context_x: An array of shape [num_contexts,1] that contains 
+        the x values of the context points.
+    context_y: An array of shape [num_contexts,1] that contains 
+        the y values of the context points.
+    mean_y: An array of shape [num_targets,1] that contains the
+        predicted means of the y values at the target points in target_x.
+    std_y: An array of shape [num_targets,1] that contains the
+        predicted std dev of the y values at the target points in target_x.
+    mean_gp: An array of shape [num_targets,1] that contains the
+        GP means of the y values at the target points in target_x.
+    std_gp: An array of shape [num_targets,1] that contains the
+        GP std dev of the y values at the target points in target_x.
+    """
+    # Plot the target line
+    plt.figure()
+    plt.plot(target_x, target_y, "k:", linewidth=2)  # the .data converts it back to tensor
+
+    # Plot the context set
+    plt.plot(context_x, context_y, "ko", markersize=10)
+    
+    # Plot the process posterior function
+    plt.plot(target_x, mean_y.data, "b", linewidth=2)
+    plt.fill_between(
+        target_x,
+        mean_y - std_y,
+        mean_y + std_y,
+        alpha=0.2,
+        facecolor="b",
+        interpolate=True,
+    )
+
+    # Plot the GP posterior function on the context
+    plt.plot(target_x, mean_gp, "g", linewidth=2)
+    plt.fill_between(
+        target_x,
+        mean_gp - std_gp,
+        mean_gp + std_gp,
+        alpha=0.2,
+        facecolor="g",
+        interpolate=True,
+    )
+
+    # Make the plot pretty
+    plt.yticks([-2, 0, 2], fontsize=16)
+    plt.xticks([-2, 0, 2], fontsize=16)
+    plt.ylim([-2, 2])
+    plt.grid("off")
+    plt.gca()
+
+    file = os.path.join(dir, name)
+
+    if save:
+        plt.savefig(file + '.pdf')
+        plt.savefig(file + '.png')
+        plt.close()
+    elif show:
+        plt.show()
+
+
+def kernel_interpolate(values, value_locations, target_locations, kernel):
         """ Takes in some values at some given location, and computes the 
-        kernal interpolated values at the target locations.
+        kernel interpolated values at the target locations.
 
         Parameters
         ----------
@@ -198,7 +356,7 @@ def kernal_interpolate(values, value_locations, target_locations, kernal):
         target_locations : torch.Tensor
             Shape (num_batches, num_targets, location_dim)
 
-        kernel : Stheno.Kernal
+        kernel : Stheno.kernel
 
         returns : torch.Tensor
             Shape (num_batches, num_targets, values_dim)
@@ -208,8 +366,8 @@ def kernal_interpolate(values, value_locations, target_locations, kernal):
         num_batches, num_targets, location_dim = target_locations.shape
 
         gramm_targets_values = [
-            # kernal(target_loc, value_loc)
-            kernal(target_loc, value_loc).mat
+            # kernel(target_loc, value_loc)
+            kernel(target_loc, value_loc).mat
             for 
             target_loc, value_loc 
             in 
