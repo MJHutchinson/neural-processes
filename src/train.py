@@ -1,5 +1,6 @@
 from src.utils import plot_functions
 from torch import gather
+import matplotlib.pyplot as plt
 
 
 def train(
@@ -172,17 +173,27 @@ def train_spatiotemporal(
         loss.backward()
         optimizer.step()
 
+
         if epoch % PLOT_AFTER == 0:
             print(
                 f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
             )
-            # data_test = datagen_test.generate_curves()
-            # x_context = data_test.query[0][0].contiguous()
-            # y_context = data_test.query[0][1].contiguous()
-            # x_target = data_test.query[1].contiguous()
-            # y_target = data_test.target_y.contiguous()
-            # y_target_mu, y_target_sigma, _, _, _ = model.forward(
-            #     x_context, y_context, x_target, y_target
-            # )
+            data_test = datagen_test.generate_curves()
+            x_context = data_test.query[0][0].contiguous()
+            y_context = data_test.query[0][1].contiguous()
+            x_target = data_test.query[1].contiguous()
+            y_target = data_test.target_y.contiguous()
+            y_target_mu, y_target_sigma, _, _, _ = model.forward(
+                x_context, y_context, x_target, y_target
+            )
+            plt.figure()
+            plt.scatter(x_target[0, :, 0].squeeze(-1), x_target[0, :, 1].squeeze(-1), c=y_target[0].squeeze(-1).data)
+            plt.savefig("results/spatial_anp/context_{}.png".format(epoch))
+            plt.figure()
+            plt.scatter(x_target[0, :, 0].squeeze(-1), x_target[0, :, 1].squeeze(-1), c=y_target_mu[0].squeeze(-1).data)
+            plt.savefig("results/spatial_anp/pred_{}.png".format(epoch))
+            print(
+                f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
+            )
 
     return y_target_mu, y_target_sigma, log_pred, kl_target_context, loss

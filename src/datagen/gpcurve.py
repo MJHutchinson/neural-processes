@@ -81,9 +81,9 @@ class GPCurvesReader(object):
             num_target = 400
             num_total_points = num_target
             x_values = (
-                torch.arange(-2, 2, 1 / 100)
+                torch.linspace(-2, 2, num_target)
                 .unsqueeze(0)
-                .repeat_interleave(repeats=16, axis=0)
+                .repeat_interleave(repeats=self._batch_size, axis=0)
             )
             x_values = x_values.unsqueeze(-1)
         # During training the number of target points and their x-positions are
@@ -505,17 +505,17 @@ class ProductRBFCurvesReader(GPCurvesReader):
         # If we are testing we want to have more targets and have them evenly
         # distributed in order to plot the function.
         if self._testing:
-            num_target = 400
+            num_target = 50
             num_total_points = num_target
             space_values = (
                 torch.linspace(-2, 2, int(num_total_points))
                 .unsqueeze(0)
-                .repeat_interleave(repeats=16, axis=0)
+                .repeat_interleave(repeats=self._batch_size, axis=0)
             ).unsqueeze(-1)
             time_values = (
                 torch.linspace(-2, 2, int(num_total_points))
                 .unsqueeze(0)
-                .repeat_interleave(repeats=16, axis=0)
+                .repeat_interleave(repeats=self._batch_size, axis=0)
             ).unsqueeze(-1)
         # During training the number of target points and their x-positions are
         # selected at random
@@ -530,12 +530,12 @@ class ProductRBFCurvesReader(GPCurvesReader):
             space_values = (
                 torch.linspace(-2, 2, int(num_total_points))
                 .unsqueeze(0)
-                .repeat_interleave(repeats=16, axis=0)
+                .repeat_interleave(repeats=self._batch_size, axis=0)
             ).unsqueeze(-1)
             time_values = (
                 torch.linspace(-2, 2, int(num_total_points))
                 .unsqueeze(0)
-                .repeat_interleave(repeats=16, axis=0)
+                .repeat_interleave(repeats=self._batch_size, axis=0)
             ).unsqueeze(-1)
         # Set kernel parameters
         # Either choose a set of random parameters for the mini-batch
@@ -572,17 +572,12 @@ class ProductRBFCurvesReader(GPCurvesReader):
         y_values = y_values.squeeze(1)
 
         x_values = torch.zeros(self._batch_size, num_total_points ** 2, self._x_size)
-        x_values[:, :, 1] = (
-            time_values.squeeze(1).repeat_interleave(
-                repeats=int(num_total_points), axis=1
-            )
-        ).squeeze(2)
-
-        index = num_total_points
+        index = 0
         for i in range(num_total_points):
-            x_values[:, index : index + num_total_points, 0] = space_values[
+            x_values[:, index : index + num_total_points, 1] = space_values[
                 :, i, 0
             ].unsqueeze(1)
+            x_values[:, index : index + num_total_points, 0] = time_values[:, :, 0]
             index += num_total_points
 
         if self._testing:
@@ -591,7 +586,7 @@ class ProductRBFCurvesReader(GPCurvesReader):
             target_y = y_values
 
             # Select the observations
-            idx = arange(num_target)[torch.randperm(num_target)]
+            idx = arange(num_target**2)[torch.randperm(num_target**2)]
             context_x = target_x[:, idx[: num_context ** 2], :]
             context_y = y_values[:, idx[: num_context ** 2], :]
 

@@ -7,11 +7,11 @@ from torch import optim
 from src.train import train, train_spatiotemporal
 
 MAX_CONTEXT_POINTS = 16
-random_kernel_parameters = False
+random_kernel_parameters = True
 BATCH_SIZE = 16
 hyperparameters = {
-    "EPOCHS" : 10000,
-    "PLOT_AFTER": 1000
+    "EPOCHS" : 1000,
+    "PLOT_AFTER": 100
 }
 # Sizes of the layers of the MLPs for the encoders and decoder
 # The final output layer of the decoder outputs two values, one for the mean and
@@ -35,5 +35,6 @@ datagen = ProductRBFCurvesReader(BATCH_SIZE, MAX_CONTEXT_POINTS, random_kernel_p
 datagen_test = ProductRBFCurvesReader(batch_size=1, max_num_context=MAX_CONTEXT_POINTS, testing=True, random_kernel_parameters=random_kernel_parameters)
 
 y_target_mu, y_target_sigma, log_pred, kl_target_context, loss = train_spatiotemporal(model, hyperparameters, datagen, datagen_test, optimizer, save=True, experiment_name='anp_matern_gp')
+
 
 print('FINISHED')
