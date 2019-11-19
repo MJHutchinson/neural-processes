@@ -7,11 +7,11 @@ from torch import optim
 from src.train import train, train_spatiotemporal
 
 MAX_CONTEXT_POINTS = 16
-random_kernel_parameters = True
+random_kernel_parameters = False
 BATCH_SIZE = 16
 hyperparameters = {
-    "EPOCHS" : 1000,
-    "PLOT_AFTER": 100
+    "EPOCHS" : 10000,
+    "PLOT_AFTER": 1000
 }
 # Sizes of the layers of the MLPs for the encoders and decoder
 # The final output layer of the decoder outputs two values, one for the mean and

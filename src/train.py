@@ -173,7 +173,6 @@ def train_spatiotemporal(
         loss.backward()
         optimizer.step()
 
-
         if epoch % PLOT_AFTER == 0:
             print(
                 f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
@@ -187,11 +186,32 @@ def train_spatiotemporal(
                 x_context, y_context, x_target, y_target
             )
             plt.figure()
-            plt.scatter(x_target[0, :, 0].squeeze(-1), x_target[0, :, 1].squeeze(-1), c=y_target[0].squeeze(-1).data)
+            plt.scatter(
+                x_target[0, :, 0].squeeze(-1),
+                x_target[0, :, 1].squeeze(-1),
+                c=y_target[0].squeeze(-1).data,
+                marker="s",
+            )
+            plt.colorbar()
             plt.savefig("results/spatial_anp/context_{}.png".format(epoch))
             plt.figure()
-            plt.scatter(x_target[0, :, 0].squeeze(-1), x_target[0, :, 1].squeeze(-1), c=y_target_mu[0].squeeze(-1).data)
+            plt.scatter(
+                x_target[0, :, 0].squeeze(-1),
+                x_target[0, :, 1].squeeze(-1),
+                c=y_target_mu[0].squeeze(-1).data,
+                marker="s",
+            )
+            plt.colorbar()
             plt.savefig("results/spatial_anp/pred_{}.png".format(epoch))
+            plt.figure()
+            plt.scatter(
+                x_target[0, :, 0].squeeze(-1),
+                x_target[0, :, 1].squeeze(-1),
+                c=y_target_sigma[0].squeeze(-1).data,
+                marker="s",
+            )
+            plt.colorbar()
+            plt.savefig("results/spatial_anp/pred_sigma_{}.png".format(epoch))
             print(
                 f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
             )
