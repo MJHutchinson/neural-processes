@@ -1,5 +1,5 @@
 import collections
-from torch import eye, randint, int32, arange, Tensor, float32, sqrt
+from torch import eye, randint, int32, arange, Tensor, float32, sqrt, ones
 import torch
 
 
@@ -103,7 +103,7 @@ def generate_lengthscale_sigma_f(
         sigma_f = Tensor(batch_size, y_size).uniform_(0.1, sigma_scale)
     # Or use the same fixed parameters for all mini-batches
     else:
-        l1 = eye(batch_size, y_size, x_size) * l1_scale
-        sigma_f = eye(batch_size, y_size) * sigma_scale
+        l1 = ones(batch_size, y_size, x_size) * l1_scale
+        sigma_f = ones(batch_size, y_size) * sigma_scale
 
     return l1, sigma_f
