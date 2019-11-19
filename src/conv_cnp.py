@@ -187,16 +187,16 @@ class ConvCNP(nn.Module):
     def __init__(self, cnn='simple'):
         super(ConvCNP, self).__init__()
 
-        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.1))
-        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.1))
+        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.5))
+        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.5))
         self.kernel_x = EQ() > self.kernel_x_lengh_scale
         self.kernel_rho = EQ() > self.kernel_rho_lengh_scale
         # self.kernel_x = EQKernel(length_scale=.15, trainable=True)
         # self.kernel_rho = EQKernel(length_scale=.15, trainable=True)
         if cnn == 'simple':
-            self.rho_cnn = SimpleCNN(3, 1)
+            self.rho_cnn = SimpleCNN(2, 1)
         elif cnn == 'xl':
-            self.rho_cnn = XLCNN(3, 1)
+            self.rho_cnn = XLCNN(2, 1)
 
 
     def forward(self, x_context, y_context, x_target, y_target=None):
@@ -227,10 +227,13 @@ class ConvCNP(nn.Module):
         # (maybe min - 10% of range, max + 10% of range), and a density of
         # something on 10x the order of context points?
         # TODO: make this work for 2D or more x dimensions
-        x_min = torch.min(torch.tensor([torch.min(x_context), torch.min(x_target)]))
-        x_max = torch.max(torch.tensor([torch.max(x_context), torch.max(x_target)]))
-        x_range = x_max - x_min
-        t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
+
+        # x_min = torch.min(torch.tensor([torch.min(x_context), torch.min(x_target)]))
+        # x_max = torch.max(torch.tensor([torch.max(x_context), torch.max(x_target)]))
+        # x_range = x_max - x_min
+        t_grid = torch.linspace(-2.2, 2.2, 1000).unsqueeze(-1)
+        # t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
+        
         # Expand the t_grid to match the number of batches
         t_grid = t_grid.T.unsqueeze(0).repeat_interleave(num_batches, dim=0)
 
@@ -252,10 +255,10 @@ class ConvCNP(nn.Module):
 
         # Concatenate the t_grid locations with the evaluated represnetation
         # functions
-        rep = torch.cat((t_grid, h_grid), dim=1)
+        # rep = torch.cat((t_grid, h_grid), dim=1)
 
         # Pass the representation through the decoder.
-        y_mu_grid, y_sigma_grid = self.rho_cnn(rep)
+        y_mu_grid, y_sigma_grid = self.rho_cnn(h_grid)
 
         y_grid = torch.cat((y_mu_grid, y_sigma_grid), dim=1)
 
@@ -270,7 +273,7 @@ class ConvCNP(nn.Module):
 
         # If we have a y_target, then return the loss. Else do not.
         if y_target is not None:
-            loss = - Normal(y_pred_target_mu, y_pred_target_sigma).log_prob(y_target).mean(dim=-1, keepdims=True)
+            loss = -Normal(y_pred_target_mu, y_pred_target_sigma).log_prob(y_target).mean(dim=-1).sum()
         else:
             loss = None
 

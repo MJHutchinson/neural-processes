@@ -97,8 +97,6 @@ elif args.GP_type == 'Matern':
 else:
     raise ValueError('Unrecognised GP type')
 
-print(datagen_train._random_kernel_parameters)
-
 
 optimiser = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 
