@@ -187,8 +187,9 @@ class ConvCNP(nn.Module):
     def __init__(self, cnn='simple'):
         super(ConvCNP, self).__init__()
 
-        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.1))
-        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(1.))
+        # Initialise at double grid spacing
+        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.0625))
+        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.0625))
         self.kernel_x = EQ() > self.kernel_x_lengh_scale
         self.kernel_rho = EQ() > self.kernel_rho_lengh_scale
         # self.kernel_x = EQKernel(length_scale=.15, trainable=True)
@@ -231,7 +232,8 @@ class ConvCNP(nn.Module):
         # x_min = torch.min(torch.tensor([torch.min(x_context), torch.min(x_target)]))
         # x_max = torch.max(torch.tensor([torch.max(x_context), torch.max(x_target)]))
         # x_range = x_max - x_min
-        t_grid = torch.linspace(-2.2, 2.2, 256).unsqueeze(-1)
+        # Produce a grid of desity 32 per unit
+        t_grid = torch.linspace(-3, 3, 32*6).unsqueeze(-1)
         # t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
 
         # Expand the t_grid to match the number of batches

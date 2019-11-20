@@ -133,7 +133,8 @@ if args.GP_type == 'RBF':
         max_num_context=args.max_context,
         min_num_context=args.min_context,
         max_points=args.max_points,
-        random_kernel_parameters=args.random_kernel
+        random_kernel_parameters=args.random_kernel,
+        l1_scale=0.25
     )
     datagen_test = RBFGPCurvesReader(
         batch_size=1, 
@@ -141,7 +142,8 @@ if args.GP_type == 'RBF':
         min_num_context=args.min_context,
         max_points=args.max_points,
         random_kernel_parameters=args.random_kernel,
-        testing=True
+        testing=True,
+        l1_scale=0.25
     ) 
     datagen_validate = RBFGPCurvesReader(
         batch_size=1000, 
@@ -149,6 +151,7 @@ if args.GP_type == 'RBF':
         min_num_context=args.min_context,
         max_points=args.max_points, 
         random_kernel_parameters=args.random_kernel,
+        l1_scale=0.25
     ) 
 elif args.GP_type == 'Matern':
     from src.datagen.gpcurve import MaternGPCurvesReader
@@ -158,7 +161,8 @@ elif args.GP_type == 'Matern':
         min_num_context=args.min_context,
         max_points=args.max_points,
         random_kernel_parameters=args.random_kernel,
-        nu=2.5
+        nu=2.5,
+        l1_scale=0.25
     )
     datagen_test = MaternGPCurvesReader(
         batch_size=1, 
@@ -167,6 +171,7 @@ elif args.GP_type == 'Matern':
         max_points=args.max_points,
         random_kernel_parameters=args.random_kernel,
         nu=2.5,
+        l1_scale=0.25,
         testing=True
     ) 
     datagen_validate = MaternGPCurvesReader(
@@ -176,6 +181,7 @@ elif args.GP_type == 'Matern':
         max_points=args.max_points,
         random_kernel_parameters=args.random_kernel,
         nu=2.5,
+        l1_scale=0.25
     )    
 else:
     raise ValueError('Unrecognised GP type')
