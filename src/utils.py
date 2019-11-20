@@ -455,13 +455,8 @@ def kernel_interpolate(values, value_locations, target_locations, kernel):
         num_batches, num_targets, location_dim = target_locations.shape
 
         gramm_targets_values = [
-<<<<<<< HEAD
-            # kernal(target_loc, value_loc)
-            kernal(target_loc , value_loc).mat
-=======
             # kernel(target_loc, value_loc)
             kernel(target_loc, value_loc).mat
->>>>>>> 31108de578bd6163f02d3f1b13d67a01162507b9
             for 
             target_loc, value_loc 
             in 
