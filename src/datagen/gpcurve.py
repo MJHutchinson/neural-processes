@@ -30,6 +30,8 @@ class GPCurvesReader(object):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         random_kernel_parameters=True,
@@ -51,6 +53,8 @@ class GPCurvesReader(object):
         """
         self._batch_size = batch_size
         self._max_num_context = max_num_context
+        self._min_num_context = min_num_context
+        self._max_num_points = max_points
         self._x_size = x_size
         self._y_size = y_size
         self._random_kernel_parameters = random_kernel_parameters
@@ -73,7 +77,7 @@ class GPCurvesReader(object):
         Returns:
             A `CNPRegressionDescription` namedtuple.
         """
-        num_context = randint(low=3, high=self._max_num_context, size=(1,), dtype=int32)
+        num_context = randint(low=self._min_num_context, high=self._max_num_context, size=(1,), dtype=int32)
 
         # If we are testing we want to have more targets and have them evenly
         # distributed in order to plot the function.
@@ -91,7 +95,7 @@ class GPCurvesReader(object):
         else:
             num_target = randint(
                 low=0,
-                high=int(self._max_num_context - num_context),
+                high=int(self._max_num_points - num_context),
                 size=(1,),
                 dtype=int32,
             )
@@ -141,92 +145,14 @@ class GPCurvesReader(object):
 
         query = ((context_x, context_y), target_x)
 
+        # print(target_x.shape, context_x.shape, num_target, num_context)
+
         return NPRegressionDescription(
             query=query,
             target_y=target_y,
             num_total_points=target_x.shape[1],
             num_context_points=num_context,
-        )
-
-
-class RBFGPCurvesReader(GPCurvesReader):
-    """Generates curves using a Gaussian Process (GP).
-
-    Supports vector inputs (x) and vector outputs (y). Kernel is
-    mean-squared exponential, using the x-value l2 coordinate distance scaled by
-    some factor chosen randomly in a range. Outputs are independent gaussian
-    processes.
-    """
-
-    def __init__(
-        self,
-        batch_size,
-        max_num_context,
-        x_size=1,
-        y_size=1,
-        l1_scale=0.6,
-        sigma_scale=1.0,
-        random_kernel_parameters=True,
-        testing=False,
-    ):
-        """Creates a regression dataset of functions sampled from a GP.
-
-        Args:
-            batch_size: An integer.
-            max_num_context: The max number of observations in the context.
-            x_size: Integer >= 1 for length of "x values" vector.
-            y_size: Integer >= 1 for length of "y values" vector.
-            l1_scale: Float; typical scale for kernel distance function.
-            sigma_scale: Float; typical scale for variance.
-            random_kernel_parameters: If `True`, the kernel parameters (l1 and sigma) 
-                will be sampled uniformly within [0.1, l1_scale] and [0.1, sigma_scale].
-            testing: Boolean that indicates whether we are testing. If so there are
-                more targets for visualization.
-        """
-        super(RBFGPCurvesReader, self).__init__(
-            batch_size,
-            max_num_context,
-            x_size=x_size,
-            y_size=y_size,
-            random_kernel_parameters=random_kernel_parameters,
-            testing=testing,
-        )
-        self._l1_scale = l1_scale
-        self._sigma_scale = sigma_scale
-
-    def _generate_kernel_params(self):
-        # Set kernel parameters
-        # Either choose a set of random parameters for the mini-batch
-        l1, sigma_f = generate_lengthscale_sigma_f(
-            self._random_kernel_parameters,
-            self._batch_size,
-            self._y_size,
-            self._x_size,
-            self._l1_scale,
-            self._sigma_scale,
-        )
-        return l1, sigma_f
-
-    def _kernel(self, xdata, l1, sigma_f, sigma_noise=2e-2):
-        """Applies the Gaussian kernel to generate curve data.
-
-        Args:
-            xdata: Tensor of shape [B, num_total_points, x_size] with
-                the values of the x-axis data.
-            l1: Tensor of shape [B, y_size, x_size], the scale
-                parameter of the Gaussian kernel.
-            sigma_f: Tensor of shape [B, y_size], the magnitude
-                of the std.†
-            sigma_noise: Float, std of the noise that we add for stability.
-
-        Returns:
-            The kernel, a float tensor of shape
-            [B, y_size, num_total_points, num_total_points].
-        """
-        kernel = rbf_kernel(xdata, l1, sigma_f, sigma_noise=2e-2)
-
-        return kernel
-
+        ), params
 
 class MaternGPCurvesReader(GPCurvesReader):
     """Generates curves using a Gaussian Process (GP).
@@ -241,6 +167,8 @@ class MaternGPCurvesReader(GPCurvesReader):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         l1_scale=0.6,
@@ -266,6 +194,8 @@ class MaternGPCurvesReader(GPCurvesReader):
         super(MaternGPCurvesReader, self).__init__(
             batch_size,
             max_num_context,
+            min_num_context,
+            max_points,
             x_size=x_size,
             y_size=y_size,
             random_kernel_parameters=random_kernel_parameters,
@@ -322,6 +252,8 @@ class RBFGPCurvesReader(GPCurvesReader):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         l1_scale=0.6,
@@ -346,6 +278,8 @@ class RBFGPCurvesReader(GPCurvesReader):
         super(RBFGPCurvesReader, self).__init__(
             batch_size,
             max_num_context,
+            min_num_context,
+            max_points,
             x_size=x_size,
             y_size=y_size,
             random_kernel_parameters=random_kernel_parameters,

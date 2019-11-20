@@ -3,8 +3,8 @@ from torch import nn
 from torch.distributions import Normal
 
 
-class AttentiveNeuralProcess(nn.Module):
-    """ Implements the Neural Process in a general form.
+class ConditionalNeuralProcess(nn.Module):
+    """ Implements the Conditional Neural Process in a general form.
     
     """
 
@@ -12,17 +12,12 @@ class AttentiveNeuralProcess(nn.Module):
         self,
         deterministic_encoder,
         attention,
-        latent_encoder,
         decoder,
-        use_deterministic_path,
     ):
-        super(AttentiveNeuralProcess, self).__init__()
+        super(ConditionalNeuralProcess, self).__init__()
         self.deterministic_encoder = deterministic_encoder
         self.attention = attention
-        self.latent_encoder = latent_encoder
         self.decoder = decoder
-
-        self.use_deterministic_path = use_deterministic_path
 
     def xyx_to_r(self, x_context, y_context, x_target):
         """
@@ -63,60 +58,18 @@ class AttentiveNeuralProcess(nn.Module):
         batch_size, num_context, _ = y_context.size()
         _, num_target, x_size = x_target.size()
 
-        # If we are training and have y_targets, then we want
-        # to encode the training and context set, as we need
-        # the context distribution to compute the KL
-        z_mu_context, z_sigam_context = self.xy_to_z(x_context, y_context)
+        deterministic_representation = self.xyx_to_r(x_context, y_context, x_target)
 
-        q_context = Normal(z_mu_context, z_sigam_context)
+        y_target_mu, y_target_sigma = self.decoder(x_target, deterministic_representation)
 
-        # If we don't have a y_target, we are are in prediction mode.
-        # If we do have a y_target, we are in training mode.
-
-        training = y_target is not None
-        if training:
-            z_mu_target, z_sigma_target = self.xy_to_z(x_target, y_target)
-
-            q_target = Normal(z_mu_target, z_sigma_target)
-
-            latent_sample = q_target.sample()
-
-        else:
-            latent_sample = q_context.sample()
-
-        latent_sample = latent_sample.unsqueeze(dim=1).expand(-1, num_target, -1)
-
-        if self.use_deterministic_path:
-            deterministic_representation = self.xyx_to_r(x_context, y_context, x_target)
-            rep = torch.cat((deterministic_representation, latent_sample), dim=-1)
-        else:
-            rep = latent_sample
-
-        y_target_mu, y_target_sigma = self.decoder(x_target, rep)
-
-        # TODO: Make this loss function flexible to use the vairous proposals
-        # in Empirical Evaluation of Neural Process Objectives. See there for
-        # details of this loss too.
-        if training:
-            # Log predictive probability of the observations
+        if y_target is not None:
             y_dist = Normal(y_target_mu, y_target_sigma)
             log_pred = y_dist.log_prob(y_target).sum(dim=-1)
-            # KL divergence between the context latent and target latent
-            kl_target_context = (
-                torch.distributions.kl_divergence(q_target, q_context)
-                .sum(dim=-1, keepdim=True)
-                .expand(-1, num_target)
-            )
-            # prior = Normal(0, 1)
-            # kl_target_prior = torch.distributions.kl_divergence(q_target, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
-            # kl_context_prior = torch.distributions.kl_divergence(context, prior).sum(dim=-1, keepdim=True).expand(-1, num_target)
-            loss = -torch.mean(log_pred - (kl_target_context / num_target))
+            loss = -torch.mean(log_pred)
         else:
-            log_pred = None
-            kl_target_context = (None,)
             loss = None
 
-        return y_target_mu, y_target_sigma, loss, log_pred, kl_target_context
+        return y_target_mu, y_target_sigma, loss, _, _
 
     # def evaluate(self, x_context, y_context, x_target, y_target):
 

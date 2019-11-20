@@ -1,4 +1,4 @@
-from src.utils import plot_functions
+from src.utils import plot_function
 from torch import gather
 import matplotlib.pyplot as plt
 
@@ -72,7 +72,7 @@ def train(
         optimizer.step()
 
         if epoch % PLOT_AFTER == 0:
-            plot_functions(
+            plot_function(
                 x_target,
                 y_target,
                 x_context,
@@ -91,7 +91,7 @@ def train(
             y_target_mu, y_target_sigma, _, _, _ = model.forward(
                 x_context, y_context, x_target, y_target
             )
-            plot_functions(
+            plot_function(
                 x_target,
                 y_target,
                 x_context,
