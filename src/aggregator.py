@@ -188,6 +188,6 @@ class Attention(Module):
         q = self.embed_func(x1)
         k = self.embed_func(x2)
 
-        rep = self.attention_func(q, k, r)
+        rep = self.attention_func(q, k, r).contiguous()
 
         return rep

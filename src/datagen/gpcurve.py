@@ -29,6 +29,8 @@ class GPCurvesReader(object):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         random_kernel_parameters=True,
@@ -50,6 +52,8 @@ class GPCurvesReader(object):
         """
         self._batch_size = batch_size
         self._max_num_context = max_num_context
+        self._min_num_context = min_num_context
+        self._max_num_points = max_points
         self._x_size = x_size
         self._y_size = y_size
         self._random_kernel_parameters = random_kernel_parameters
@@ -71,7 +75,7 @@ class GPCurvesReader(object):
         Returns:
             A `CNPRegressionDescription` namedtuple.
         """
-        num_context = randint(low=3, high=self._max_num_context, size=(1,), dtype=int32)
+        num_context = randint(low=self._min_num_context, high=self._max_num_context, size=(1,), dtype=int32)
 
         # If we are testing we want to have more targets and have them evenly
         # distributed in order to plot the function.
@@ -89,7 +93,7 @@ class GPCurvesReader(object):
         else:
             num_target = randint(
                 low=0,
-                high=int(self._max_num_context - num_context),
+                high=int(self._max_num_points - num_context),
                 size=(1,),
                 dtype=int32,
             )
@@ -161,6 +165,8 @@ class RBFGPCurvesReader(GPCurvesReader):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         l1_scale=0.6,
@@ -185,6 +191,8 @@ class RBFGPCurvesReader(GPCurvesReader):
         super(RBFGPCurvesReader, self).__init__(
             batch_size,
             max_num_context,
+            min_num_context,
+            max_points,
             x_size=x_size,
             y_size=y_size,
             random_kernel_parameters=random_kernel_parameters,
@@ -240,6 +248,8 @@ class MaternGPCurvesReader(GPCurvesReader):
         self,
         batch_size,
         max_num_context,
+        min_num_context,
+        max_points,
         x_size=1,
         y_size=1,
         l1_scale=0.6,
@@ -265,6 +275,8 @@ class MaternGPCurvesReader(GPCurvesReader):
         super(MaternGPCurvesReader, self).__init__(
             batch_size,
             max_num_context,
+            min_num_context,
+            max_points,
             x_size=x_size,
             y_size=y_size,
             random_kernel_parameters=random_kernel_parameters,

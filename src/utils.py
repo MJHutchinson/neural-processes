@@ -327,7 +327,96 @@ def plot_compare_processes_gp(
     # Make the plot pretty
     plt.yticks([-2, 0, 2], fontsize=16)
     plt.xticks([-2, 0, 2], fontsize=16)
-    plt.ylim([-2, 2])
+    plt.ylim([-3, 3])
+    plt.grid("off")
+    plt.gca()
+
+    file = os.path.join(dir, name)
+
+    if save:
+        plt.savefig(file + '.pdf')
+        plt.savefig(file + '.png')
+        plt.close()
+    elif show:
+        plt.show()
+
+def plot_compare_processes_gp_latent(
+    target_x,
+    target_y,
+    context_x,
+    context_y,
+    mean_y,
+    std_y,
+    mean_gp,
+    std_gp,
+    save=False,
+    show=False,
+    dir=None,
+    name=None,
+    ):
+    """Plots the predicted mean and variance and the context points.
+
+    ONLY plots the first function given.
+
+    DISCLAIMER: not my own code.
+    Credits to: https://github.com/deepmind/neural-processes/blob/master/attentive_neural_process.ipynb
+
+    Args: 
+    target_x: An array of shape [num_targets,1] that contains the
+        x values of the target points.
+    target_y: An array of shape [num_targets,1] that contains the
+        y values of the target points.
+    context_x: An array of shape [num_contexts,1] that contains 
+        the x values of the context points.
+    context_y: An array of shape [num_contexts,1] that contains 
+        the y values of the context points.
+    mean_y: An array of shape [samples, num_targets,1] that contains the
+        predicted means of the y values at the target points in target_x.
+    std_y: An array of shape [samples, num_targets,1] that contains the
+        predicted std dev of the y values at the target points in target_x.
+    mean_gp: An array of shape [num_targets,1] that contains the
+        GP means of the y values at the target points in target_x.
+    std_gp: An array of shape [num_targets,1] that contains the
+        GP std dev of the y values at the target points in target_x.
+    """
+    
+    # Plot the target line
+    plt.figure()
+    plt.plot(target_x, target_y, "k:", linewidth=2)  # the .data converts it back to tensor
+
+    # Plot the context set
+    plt.plot(context_x, context_y, "ko", markersize=10)
+    
+    # Plot the process posterior function
+
+    means_y = torch.unbind(mean_y, dim=0)
+    stds_y = torch.unbind(std_y, dim=0)
+    for m_y, s_y in zip(means_y, stds_y):
+        plt.plot(target_x, m_y.data, "b", linewidth=2, alpha=0.2)
+        plt.fill_between(
+            target_x,
+            m_y - s_y,
+            m_y + s_y,
+            alpha=0.05,
+            facecolor="b",
+            interpolate=True,
+        )
+
+    # Plot the GP posterior function on the context
+    plt.plot(target_x, mean_gp, "g", linewidth=2)
+    plt.fill_between(
+        target_x,
+        mean_gp - std_gp,
+        mean_gp + std_gp,
+        alpha=0.2,
+        facecolor="g",
+        interpolate=True,
+    )
+
+    # Make the plot pretty
+    plt.yticks([-2, 0, 2], fontsize=16)
+    plt.xticks([-2, 0, 2], fontsize=16)
+    plt.ylim([-3, 3])
     plt.grid("off")
     plt.gca()
 

@@ -233,7 +233,7 @@ class ConvCNP(nn.Module):
         # x_range = x_max - x_min
         t_grid = torch.linspace(-2.2, 2.2, 1000).unsqueeze(-1)
         # t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
-        
+
         # Expand the t_grid to match the number of batches
         t_grid = t_grid.T.unsqueeze(0).repeat_interleave(num_batches, dim=0)
 
@@ -273,8 +273,8 @@ class ConvCNP(nn.Module):
 
         # If we have a y_target, then return the loss. Else do not.
         if y_target is not None:
-            loss = -Normal(y_pred_target_mu, y_pred_target_sigma).log_prob(y_target).mean(dim=-1).sum()
+            loss = - Normal(y_pred_target_mu, y_pred_target_sigma).log_prob(y_target).mean()
         else:
             loss = None
 
-        return y_pred_target_mu.transpose(1,2), y_pred_target_sigma.transpose(1,2), loss
+        return y_pred_target_mu.transpose(1,2), y_pred_target_sigma.transpose(1,2), loss, None, None
