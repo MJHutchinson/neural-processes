@@ -135,7 +135,6 @@ class GPCurvesReader(object):
             # some new target points
             target_x = x_values[:, : num_target + num_context, :]
             target_y = y_values[:, : num_target + num_context, :]
-
             # Select the observations
             context_x = x_values[:, :num_context, :]
             context_y = y_values[:, :num_context, :]
@@ -550,21 +549,21 @@ class ProductRBFCurvesReader(GPCurvesReader):
         # Calculate Cholesky, using double precision for better stability:
         cholesky_space = torch.cholesky(kernel_space.double()).float()
         cholesky_time = torch.cholesky(kernel_time.double()).float()
-        kron_kernel = torch.zeros(
+        kron_cholesky = torch.zeros(
             self._batch_size, self._y_size, num_total_points ** 2, num_total_points ** 2
         )
 
         for i in range(self._batch_size):
-            kron_kernel[i][0] = Tensor(
+            kron_cholesky[i][0] = Tensor(
                 np.kron(
-                    cholesky_space.squeeze(1).numpy()[i, :, :],
                     cholesky_time.squeeze(1).numpy()[i, :, :],
+                    cholesky_space.squeeze(1).numpy()[i, :, :],
                 )
             )
         # Sample a curve
         # [batch_size, y_size, num_total_points, 1]
         y_values = (
-            kron_kernel
+            kron_cholesky
             @ Tensor(self._batch_size, self._y_size, num_total_points ** 2, 1).normal_()
         )
 
@@ -584,6 +583,7 @@ class ProductRBFCurvesReader(GPCurvesReader):
             # Select the targets
             target_x = x_values
             target_y = y_values
+            target_sigma = kron_cholesky.squeeze(1).diagonal(dim1=1, dim2=2)
 
             # Select the observations
             idx = arange(num_target**2)[torch.randperm(num_target**2)]
@@ -595,6 +595,7 @@ class ProductRBFCurvesReader(GPCurvesReader):
             # some new target points
             target_x = x_values[:, : (num_target + num_context) ** 2, :]
             target_y = y_values[:, : (num_target + num_context) ** 2, :]
+            target_sigma = kron_cholesky.squeeze(1)[:,: (num_target + num_context) ** 2,: (num_target + num_context) ** 2].diagonal(dim1=1, dim2=2)
 
             # Select the observations
             context_x = x_values[:, : num_context ** 2, :]
@@ -607,5 +608,5 @@ class ProductRBFCurvesReader(GPCurvesReader):
             target_y=target_y,
             num_total_points=target_x.shape[1],
             num_context_points=num_context,
-        )
+        ), target_sigma
 

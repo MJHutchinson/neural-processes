@@ -159,7 +159,7 @@ def train_spatiotemporal(
 
     for epoch in range(EPOCHS):
         # Train dataset
-        data_train = datagen.generate_curves()
+        data_train, _ = datagen.generate_curves()
         x_context = data_train.query[0][0].contiguous()
         y_context = data_train.query[0][1].contiguous()
         x_target = data_train.query[1].contiguous()
@@ -177,7 +177,7 @@ def train_spatiotemporal(
             print(
                 f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
             )
-            data_test = datagen_test.generate_curves()
+            data_test, target_sigma = datagen_test.generate_curves()
             x_context = data_test.query[0][0].contiguous()
             y_context = data_test.query[0][1].contiguous()
             x_target = data_test.query[1].contiguous()
@@ -194,6 +194,19 @@ def train_spatiotemporal(
             )
             plt.colorbar()
             plt.savefig("results/spatial_anp/context_{}.png".format(epoch))
+
+
+            plt.figure()
+            plt.scatter(
+                x_target[0, :, 0].squeeze(-1),
+                x_target[0, :, 1].squeeze(-1),
+                c=target_sigma[0].squeeze(-1).data,
+                marker="s",
+            )
+            plt.colorbar()
+            plt.savefig("results/spatial_anp/context_sigma_{}.png".format(epoch))
+
+
             plt.figure()
             plt.scatter(
                 x_target[0, :, 0].squeeze(-1),
@@ -203,6 +216,7 @@ def train_spatiotemporal(
             )
             plt.colorbar()
             plt.savefig("results/spatial_anp/pred_{}.png".format(epoch))
+            
             plt.figure()
             plt.scatter(
                 x_target[0, :, 0].squeeze(-1),
@@ -212,6 +226,7 @@ def train_spatiotemporal(
             )
             plt.colorbar()
             plt.savefig("results/spatial_anp/pred_sigma_{}.png".format(epoch))
+            
             print(
                 f"Iter: {epoch}, log_pred: {log_pred.sum()}, kl_target_context: {kl_target_context.sum()}, loss: {loss.sum()}"
             )
