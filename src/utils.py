@@ -209,7 +209,7 @@ def kernal_interpolate(values, value_locations, target_locations, kernal):
 
         gramm_targets_values = [
             # kernal(target_loc, value_loc)
-            kernal(target_loc, value_loc).mat
+            kernal(target_loc , value_loc).mat
             for 
             target_loc, value_loc 
             in 
@@ -233,8 +233,48 @@ class EQKernel(nn.Module):
             self.length_scale = nn.Parameter(self.length_scale)
 
     def __call__(self, x, y):
-        norms_x = torch.sum(x ** 2, axis=1)[:, None]
-        norms_y = torch.sum(y ** 2, axis=1)[None, :]
-        euclid_norms = norms_x + norms_y - 2 * torch.matmul(x, y.T)
+        euclid_norms = (x-y).norm()
 
         return torch.exp(-0.5 * euclid_norms / (self.length_scale ** 2))
+
+def kernal_interpolate_multidim(values, value_locations, target_locations, kernal):
+        """ Takes in some values at some given location, and computes the 
+        kernal interpolated values at the target locations.
+
+        Parameters
+        ----------
+        values : torch.Tensor
+            Shape (num_batches, num_values, values_dim)
+
+        value_locations : torch.Tensor
+            Shape (num_batches, num_values, location_dim)
+
+        target_locations : torch.Tensor
+            Shape (num_batches, num_targets, location_dim)
+
+        kernel : Stheno.Kernal
+
+        returns : torch.Tensor
+            Shape (num_batches, num_targets, values_dim)
+        """
+
+        num_batches, num_values, values_dim = values.shape
+        num_batches, num_targets, location_dim = target_locations.shape
+
+        gramm_targets_values = torch.zeros()
+        for t in range(target_locations.shape[1]):
+
+        gramm_targets_values = [
+            # kernal(target_loc, value_loc)
+            kernal(target_loc , value_loc).mat
+            for 
+            target_loc, value_loc 
+            in 
+            zip(target_locations.unbind(dim=0), value_locations.unbind(dim=0))
+        ]
+
+        gramm_targets_values = torch.stack(gramm_targets_values, dim=0)
+
+        targets = torch.einsum('bvd,btv->btd', values, gramm_targets_values)
+
+        return targets

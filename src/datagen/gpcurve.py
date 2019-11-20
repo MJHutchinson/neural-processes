@@ -520,10 +520,10 @@ class ProductRBFCurvesReader(GPCurvesReader):
         # selected at random
         else:
             num_target = randint(
-                low=0,
+                low=2,
                 high=int(self._max_num_context - num_context),
                 size=(1,),
-                dtype=int32,
+                dtype=int32
             )
             num_total_points = num_context + num_target
             space_values = (
