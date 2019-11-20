@@ -187,8 +187,8 @@ class ConvCNP(nn.Module):
     def __init__(self, cnn='simple'):
         super(ConvCNP, self).__init__()
 
-        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.5))
-        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.5))
+        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.1))
+        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(1.))
         self.kernel_x = EQ() > self.kernel_x_lengh_scale
         self.kernel_rho = EQ() > self.kernel_rho_lengh_scale
         # self.kernel_x = EQKernel(length_scale=.15, trainable=True)
@@ -231,7 +231,7 @@ class ConvCNP(nn.Module):
         # x_min = torch.min(torch.tensor([torch.min(x_context), torch.min(x_target)]))
         # x_max = torch.max(torch.tensor([torch.max(x_context), torch.max(x_target)]))
         # x_range = x_max - x_min
-        t_grid = torch.linspace(-2.2, 2.2, 1000).unsqueeze(-1)
+        t_grid = torch.linspace(-2.2, 2.2, 256).unsqueeze(-1)
         # t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
 
         # Expand the t_grid to match the number of batches
@@ -260,7 +260,7 @@ class ConvCNP(nn.Module):
         # Pass the representation through the decoder.
         y_mu_grid, y_sigma_grid = self.rho_cnn(h_grid)
 
-        y_grid = torch.cat((y_mu_grid, y_sigma_grid), dim=1)
+        y_grid = torch.cat((y_mu_grid, y_sigma_grid, torch.ones_like(y_mu_grid)), dim=1)
 
         y_pred_target = kernel_interpolate(
             y_grid.transpose(1,2), 
@@ -269,7 +269,9 @@ class ConvCNP(nn.Module):
             self.kernel_rho
         ).transpose(1, 2)
 
-        y_pred_target_mu, y_pred_target_sigma = torch.chunk(y_pred_target, 2, dim=1)
+        y_pred_target_mu, y_pred_target_sigma, y_density_channel = torch.chunk(y_pred_target, 3, dim=1)
+        y_pred_target_mu = y_pred_target_mu / (y_density_channel + 1e-8)
+        y_pred_target_sigma = y_pred_target_sigma / (y_density_channel + 1e-8)
 
         # If we have a y_target, then return the loss. Else do not.
         if y_target is not None:

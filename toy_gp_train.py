@@ -34,9 +34,9 @@ parser.add_argument('-m', '--model', type=str, default='ConvCNP')
 parser.add_argument('-g', '--GP-type', type=str, default='RBF')
 parser.add_argument('-r', '--random-kernel', action='store_true')
 
-parser.add_argument('-e', '--epochs', type=int, default=50_000)
+parser.add_argument('-e', '--epochs', type=int, default=50000)
 parser.add_argument('-b', '--batch-size', type=int, default=16)
-parser.add_argument('--max-context', type=int, default=16)
+parser.add_argument('--max-context', type=int, default=50)
 parser.add_argument('--min-context', type=int, default=3)
 parser.add_argument('--max-points', type=int, default=100)
 parser.add_argument('-lr', '--learning-rate', type=float, default=0.001)
@@ -322,7 +322,7 @@ for epoch in range(args.epochs+1):
         validation_losses.append(float(validation_loss))
 
         # print(
-        #     f"Iter: {epoch}, loss: {validation_loss}, x_kernel: {model.kernel_x.length_scale}, rho_kernel: {model.kernel_rho.length_scale}"
+        #     f"Iter: {epoch}, loss: {loss}, x_kernel: {model.kernel_x.length_scale}, rho_kernel: {model.kernel_rho.length_scale}"
         # )
 
         print(

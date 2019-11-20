@@ -19,7 +19,7 @@ y = torch.cat(
             dim=2
         )
 
-kernal = EQ() > .025
+kernal = EQ() > .1
 
 x_grid = torch.linspace(0, 11, 1000).unsqueeze(0).unsqueeze(-1)
 

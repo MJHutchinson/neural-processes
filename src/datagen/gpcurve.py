@@ -144,6 +144,8 @@ class GPCurvesReader(object):
 
         query = ((context_x, context_y), target_x)
 
+        # print(target_x.shape, context_x.shape, num_target, num_context)
+
         return NPRegressionDescription(
             query=query,
             target_y=target_y,
