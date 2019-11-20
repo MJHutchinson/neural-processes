@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from src.conv_cnp import ConvCNP
 from src.datagen.gpcurve import *
-from src.utils import plot_functions
+from src.utils import plot_function
 
 torch.manual_seed(0)
 
@@ -54,7 +54,7 @@ for epoch in range(EPOCHS):
         y_target = data_test.target_y.contiguous().transpose(1,2)
         y_target_mu, y_target_sigma, _ = conv_cnp.forward(x_context, y_context, x_target, y_target)
 
-        plot_functions(
+        plot_function(
             x_target.transpose(1,2),
             y_target.transpose(1,2),
             x_context.transpose(1,2),
