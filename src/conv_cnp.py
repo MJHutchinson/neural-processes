@@ -180,21 +180,21 @@ class XLCNN(nn.Module):
 class ConvCNP(nn.Module):
 
 
-    def __init__(self, cnn='simple', unit_density=32):
+    def __init__(self, process_dimension, cnn='simple', unit_density=32):
         super(ConvCNP, self).__init__()
 
         # Initialise at double grid spacing
-        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(.0625))
-        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.0625))
+        self.kernel_x_lengh_scale = nn.Parameter(torch.tensor(2./unit_density))
+        self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(2./unit_density))
         self.kernel_x = EQ() > self.kernel_x_lengh_scale
         self.kernel_rho = EQ() > self.kernel_rho_lengh_scale
         self.unit_density = unit_density
         # self.kernel_x = EQKernel(length_scale=.15, trainable=True)
         # self.kernel_rho = EQKernel(length_scale=.15, trainable=True)
         if cnn == 'simple':
-            self.rho_cnn = SimpleCNN(2, 1)
+            self.rho_cnn = SimpleCNN(process_dimension+1, process_dimension)
         elif cnn == 'xl':
-            self.rho_cnn = XLCNN(2, 1)
+            self.rho_cnn = XLCNN(process_dimension+1, process_dimension)
 
 
     def forward(self, x_context, y_context, x_target, y_target=None):
