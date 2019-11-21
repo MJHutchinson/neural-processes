@@ -180,7 +180,7 @@ class XLCNN(nn.Module):
 class ConvCNP(nn.Module):
 
 
-    def __init__(self, cnn='simple'):
+    def __init__(self, cnn='simple', unit_density=32):
         super(ConvCNP, self).__init__()
 
         # Initialise at double grid spacing
@@ -188,6 +188,7 @@ class ConvCNP(nn.Module):
         self.kernel_rho_lengh_scale = nn.Parameter(torch.tensor(.0625))
         self.kernel_x = EQ() > self.kernel_x_lengh_scale
         self.kernel_rho = EQ() > self.kernel_rho_lengh_scale
+        self.unit_density = unit_density
         # self.kernel_x = EQKernel(length_scale=.15, trainable=True)
         # self.kernel_rho = EQKernel(length_scale=.15, trainable=True)
         if cnn == 'simple':
@@ -197,17 +198,21 @@ class ConvCNP(nn.Module):
 
 
     def forward(self, x_context, y_context, x_target, y_target=None):
-        """
+        """ Forward pass on the context and target set 
         
+        Arguments:
+            x_context {torch.Tensor} -- Shape (batch_size, num_context, x_dim)
+            y_context {torch.Tensor} -- Shape (batch_size, num_context, y_dim)
+            x_target {torch.Tensor} -- Shape (batch_size, num_target, x_dim). Assumes this is a superset of x_context.
+        
+        Keyword Arguments:
+            y_target {torch.Tensor} -- Shape (batch_size, num_target, y_dim). Assumes this is a superset of y_context. (default: {None})
+        
+        Returns:
+            [y_pred_mu, y_pred_sigma, loss] -- [Mean and variance of the predictions for the y_target. The loss if we have y_targets to test against]
         """
-
-        num_batches, y_dim, num_context = y_context.shape
-        _, x_dim, num_targets = x_target.shape
-
-        x_context = x_context.transpose(1,2)
-        y_context = y_context.transpose(1,2)
-        x_target = x_target.transpose(1,2)
-        y_target = y_target.transpose(1,2)
+        num_batches, num_context, y_dim = y_context.shape
+        _, num_targets, x_dim = x_target.shape
         
         # append the channel of ones to the y vector to give it the density channel.
         # This is the reqired kernel when the multiplicity of x_context is 1
@@ -216,7 +221,7 @@ class ConvCNP(nn.Module):
                 torch.ones_like(y_context),
                 y_context
             ),
-            dim=1
+            dim=-1
         )
 
         # Produces a 1D grid of input points. 
@@ -225,49 +230,69 @@ class ConvCNP(nn.Module):
         # something on 10x the order of context points?
         # TODO: make this work for 2D or more x dimensions
 
-        # x_min = torch.min(torch.tensor([torch.min(x_context), torch.min(x_target)]))
-        # x_max = torch.max(torch.tensor([torch.max(x_context), torch.max(x_target)]))
-        # x_range = x_max - x_min
-        # Produce a grid of desity 32 per unit
-        t_grid = torch.linspace(-3, 3, 32*6).unsqueeze(-1)
-        # t_grid = torch.linspace(x_min - 0.05 * x_range, x_max + 0.05 * x_range, 100).unsqueeze(-1)
+
+        t_grid_i = []
+
+        # Loop through the x_dimensions and create a grid uniformly spaced with a 
+        # density specified via self.unit_density and a range that definity covers
+        # the range of the targets
+        for i in range(x_dim):
+            # get the x's in the desired dimension
+            x_i = torch.select(x_target, dim=-1, index=i)
+
+            # find the integer that lower and upper bound the min and max of the 
+            # target x's in this dimension. Multiplying by 1.1 to give a bit of extra 
+            # room
+            x_min_i = torch.floor(torch.min(x_i) * 1.1)
+            x_max_i = torch.ceil(torch.max(x_i) * 1.1)
+
+            # create a uniform linspace
+            t_grid_i.append(torch.linspace(x_min_i, x_max_i, int(self.unit_density * (x_max_i - x_min_i))))
+
+        t_grid = torch.meshgrid(*t_grid_i)
+        t_grid = torch.stack(t_grid, dim=-1)
+
+        t_grid_shape = t_grid.shape
+        t_grid = t_grid.view(-1, x_dim)
 
         # Expand the t_grid to match the number of batches
-        t_grid = t_grid.T.unsqueeze(0).repeat_interleave(num_batches, dim=0)
+        t_grid = t_grid.unsqueeze(0).repeat_interleave(num_batches, dim=0)
 
         # Calculate the repersentation function at each location of the grid
         # Need the transpositions as conv ops take one order of dimensions
         # and Stheno kernels the opposite.
         h_grid = kernel_interpolate(
-            phi_y_context.transpose(1,2), 
-            x_context.transpose(1,2), 
-            t_grid.transpose(1,2),
+            phi_y_context,
+            x_context,
+            t_grid,
             self.kernel_x
-        ).transpose(1,2)
+        )
 
         # divide h_1 by h_0 for stability
-        h_density_channel = h_grid[:, 0, :].unsqueeze(1)
-        h_rest = h_grid[:, 1:, :]
+        h_density_channel = h_grid[:, :, 0].unsqueeze(-1)
+        h_rest = h_grid[:, :, 1:]
         h_rest = h_rest / (h_density_channel + 1e-8)
-        h_grid = torch.cat((h_density_channel, h_rest), dim=1)
+        h_grid = torch.cat((h_density_channel, h_rest), dim=-1)
 
         # Concatenate the t_grid locations with the evaluated represnetation
         # functions
         # rep = torch.cat((t_grid, h_grid), dim=1)
 
         # Pass the representation through the decoder.
-        y_mu_grid, y_sigma_grid = self.rho_cnn(h_grid)
+        y_mu_grid, y_sigma_grid = self.rho_cnn(h_grid.transpose(1,2).view(num_batches, y_dim + 1, *list(t_grid_shape)[:-1]))
+        y_mu_grid = y_mu_grid.view(num_batches, 1, -1).transpose(1,2)
+        y_sigma_grid = y_sigma_grid.view(num_batches, 1, -1).transpose(1,2)
 
-        y_grid = torch.cat((y_mu_grid, y_sigma_grid, torch.ones_like(y_mu_grid)), dim=1)
+        y_grid = torch.cat((y_mu_grid, y_sigma_grid, torch.ones_like(y_mu_grid)), dim=-1)
 
         y_pred_target = kernel_interpolate(
-            y_grid.transpose(1,2), 
-            t_grid.transpose(1,2),
-            x_target.transpose(1,2), 
+            y_grid,
+            t_grid,
+            x_target,
             self.kernel_rho
-        ).transpose(1, 2)
+        )
 
-        y_pred_target_mu, y_pred_target_sigma, y_density_channel = torch.chunk(y_pred_target, 3, dim=1)
+        y_pred_target_mu, y_pred_target_sigma, y_density_channel = torch.chunk(y_pred_target, 3, dim=-1)
         y_pred_target_mu = y_pred_target_mu / (y_density_channel + 1e-8)
         y_pred_target_sigma = y_pred_target_sigma / (y_density_channel + 1e-8)
 
@@ -277,4 +302,4 @@ class ConvCNP(nn.Module):
         else:
             loss = None
 
-        return y_pred_target_mu.transpose(1,2), y_pred_target_sigma.transpose(1,2), loss, None, None
+        return y_pred_target_mu, y_pred_target_sigma, loss, None, None
