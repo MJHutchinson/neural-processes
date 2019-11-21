@@ -7,7 +7,7 @@ from torch.distributions import Normal
 
 from stheno.torch import EQ
 
-from src.utils import kernel_interpolate, EQKernel
+from src.utils import kernel_interpolate
 
 
 class SimpleCNN(nn.Module):
@@ -216,20 +216,6 @@ class ConvCNP(nn.Module):
         
         # append the channel of ones to the y vector to give it the density channel.
         # This is the reqired kernel when the multiplicity of x_context is 1
-        phi_y_context = torch.cat(
-            (
-                torch.ones_like(y_context),
-                y_context
-            ),
-            dim=-1
-        )
-
-        # Produces a 1D grid of input points. 
-        # TODO:  make this depend on the target set's required support
-        # (maybe min - 10% of range, max + 10% of range), and a density of
-        # something on 10x the order of context points?
-        # TODO: make this work for 2D or more x dimensions
-
 
         t_grid_i = []
 
@@ -262,17 +248,12 @@ class ConvCNP(nn.Module):
         # Need the transpositions as conv ops take one order of dimensions
         # and Stheno kernels the opposite.
         h_grid = kernel_interpolate(
-            phi_y_context,
+            y_context,
             x_context,
             t_grid,
-            self.kernel_x
+            self.kernel_x,
+            keep_density_channel=True
         )
-
-        # divide h_1 by h_0 for stability
-        h_density_channel = h_grid[:, :, 0].unsqueeze(-1)
-        h_rest = h_grid[:, :, 1:]
-        h_rest = h_rest / (h_density_channel + 1e-8)
-        h_grid = torch.cat((h_density_channel, h_rest), dim=-1)
 
         # Concatenate the t_grid locations with the evaluated represnetation
         # functions
@@ -283,18 +264,17 @@ class ConvCNP(nn.Module):
         y_mu_grid = y_mu_grid.view(num_batches, 1, -1).transpose(1,2)
         y_sigma_grid = y_sigma_grid.view(num_batches, 1, -1).transpose(1,2)
 
-        y_grid = torch.cat((y_mu_grid, y_sigma_grid, torch.ones_like(y_mu_grid)), dim=-1)
+        y_grid = torch.cat((y_mu_grid, y_sigma_grid), dim=-1)
 
         y_pred_target = kernel_interpolate(
             y_grid,
             t_grid,
             x_target,
-            self.kernel_rho
+            self.kernel_rho,
+            keep_density_channel=False
         )
 
-        y_pred_target_mu, y_pred_target_sigma, y_density_channel = torch.chunk(y_pred_target, 3, dim=-1)
-        y_pred_target_mu = y_pred_target_mu / (y_density_channel + 1e-8)
-        y_pred_target_sigma = y_pred_target_sigma / (y_density_channel + 1e-8)
+        y_pred_target_mu, y_pred_target_sigma = torch.chunk(y_pred_target, 2, dim=-1)
 
         # If we have a y_target, then return the loss. Else do not.
         if y_target is not None:

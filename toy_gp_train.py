@@ -118,7 +118,7 @@ elif args.model == 'NP':
     model = AttentiveNeuralProcess(detencoder, att, latencoder, decoder, True)
 elif args.model == 'ConvCNP':
     from src.conv_cnp import ConvCNP
-    model = ConvCNP(cnn='simple')
+    model = ConvCNP(cnn='simple', process_dimension=1)
 elif args.model == 'ConvCNPXL':
     from src.conv_cnp import ConvCNP
     model = ConvCNP(cnn='xl')

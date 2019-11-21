@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from stheno.torch import EQ
 
-from src.utils import kernel_interpolate
+from src.utils import kernel_evaluate
 
 x = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
 y = torch.linspace(1, 10, 10).unsqueeze(0).unsqueeze(-1)
@@ -23,7 +23,7 @@ kernal = EQ() > .1
 
 x_grid = torch.linspace(0, 11, 1000).unsqueeze(0).unsqueeze(-1)
 
-y_grid = kernel_interpolate(y, x, x_grid, kernal)
+y_grid = kernel_evaluate(y, x, x_grid, kernal)
 
 print(y.squeeze())
 print(y.squeeze().shape)
