@@ -12,6 +12,10 @@ from src.utils import plot_compare_processes_gp, plot_compare_processes_gp_laten
 
 kernel_noise = 2e-2
 
+model_file_name = 'model.pt'
+results_file_name = 'results.pkl'
+results_text_file = 'results.txt'
+
 torch.manual_seed(0)
 
 parser = argparse.ArgumentParser()
@@ -42,7 +46,9 @@ parser.add_argument('--max-points', type=int, default=100)
 parser.add_argument('-lr', '--learning-rate', type=float, default=0.001)
 parser.add_argument('--test-epoch', type=int, default=500)
 
-parser.add_argument('--name-suffix', type=str, default='test')
+parser.add_argument('--name-suffix', type=str, default=None)
+
+parser.add_argument('--load-model', action='store_true')
 
 args = parser.parse_args()
 
@@ -121,7 +127,7 @@ elif args.model == 'ConvCNP':
     model = ConvCNP(cnn='simple', process_dimension=1)
 elif args.model == 'ConvCNPXL':
     from src.conv_cnp import ConvCNP
-    model = ConvCNP(cnn='xl')
+    model = ConvCNP(cnn='xl', process_dimension=1)
 else:
     raise ValueError('Unrecognised model type')
 
@@ -198,153 +204,350 @@ x_context_valid = data_valid.query[0][0].contiguous()
 x_target_valid = data_valid.query[1].contiguous()
 y_target_valid = data_valid.target_y.contiguous()
 
-for epoch in range(args.epochs+1):
-    data_train, _ = datagen_train.generate_curves()
-    x_context = data_train.query[0][0].contiguous()
-    x_context, x_context_sorted_indices = x_context.sort(1)
-    y_context = data_train.query[0][1].contiguous()
-    y_context = torch.gather(y_context, 1, x_context_sorted_indices)
-    x_target = data_train.query[1].contiguous()
-    x_target, x_target_sorted_indices = x_target.sort(1)
-    y_target = data_train.target_y.contiguous()
-    y_target = torch.gather(y_target, 1, x_target_sorted_indices)
+if args.load_model:
+    model.load_state_dict(torch.load(os.path.join(results_dir, results_file_name), pickle_module=pickle))
+else:
+    for epoch in range(args.epochs+1):
+        data_train, _ = datagen_train.generate_curves()
+        x_context = data_train.query[0][0].contiguous()
+        x_context, x_context_sorted_indices = x_context.sort(1)
+        y_context = data_train.query[0][1].contiguous()
+        y_context = torch.gather(y_context, 1, x_context_sorted_indices)
+        x_target = data_train.query[1].contiguous()
+        x_target, x_target_sorted_indices = x_target.sort(1)
+        y_target = data_train.target_y.contiguous()
+        y_target = torch.gather(y_target, 1, x_target_sorted_indices)
 
-    optimiser.zero_grad()
+        optimiser.zero_grad()
 
+        if args.model in ['ANP', 'NP']:
+            y_target_mu, y_target_sigma, loss, log_pred, kl_target_context  = model.forward(
+                x_context, y_context, x_target, y_target
+            )
+        else:
+            y_target_mu, y_target_sigma, loss, _, _ = model.forward(x_context, y_context, x_target, y_target)
+            loss = loss.sum()
+        loss.backward()
+        optimiser.step()
+
+        if epoch % args.test_epoch == 0:
+            # plot some samples
+            # refix the seed
+            random_state = torch.get_rng_state()
+            for i in range(10):
+                torch.manual_seed(i)
+                # Sample a single GP from the distribution
+                data_test, params = datagen_test.generate_curves()
+                y_context = data_test.query[0][1].contiguous()[0].unsqueeze(0)
+                x_context = data_test.query[0][0].contiguous()[0].unsqueeze(0)
+                x_target = data_test.query[1].contiguous()[0].unsqueeze(0)
+                y_target = data_test.target_y.contiguous()[0].unsqueeze(0)
+
+                # If our model has a latent part, we want to plot many 
+                # samples from the function
+                if args.model in ['ANP', 'NP']:
+                    y_target_mu = []
+                    y_target_sigma = []
+                    for j in range(10):
+                        y_target_mu_i, y_target_sigma_i, _, _, _ = model.forward(
+                            x_context, y_context, x_target, y_target
+                        )
+                        y_target_mu.append(y_target_mu_i)
+                        y_target_sigma.append(y_target_sigma_i)
+
+                    y_target_mu = torch.cat(tuple(y_target_mu), dim=0)
+                    y_target_sigma = torch.cat(tuple(y_target_sigma), dim=0)
+                # If the function is deterministic, we only want to plot one.
+                else:
+                    y_target_mu, y_target_sigma, _, _, _ = model.forward(x_context, y_context, x_target, y_target)
+                    y_target_mu = y_target_mu
+                    y_target_sigma = y_target_sigma
+
+                # Select only the first element of 
+                y_context = y_context[0].data.squeeze()
+                x_context = x_context[0].data.squeeze()
+                x_target = x_target[0].data.squeeze()
+                y_target = y_target[0].data.squeeze() 
+
+                name = f'epoch_{epoch}_sample_{i}'
+
+                # Fit the relevent GP to the data
+                if args.GP_type == 'RBF':
+                    kernel = EQ().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+                elif args.GP_type == 'Matern':
+                    kernel = Matern52().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+
+                f = GP(kernel)
+                e = GP(Delta()) * kernel_noise
+                gp = f + e | (x_context, y_context)
+                preds = gp(x_target)
+                gp_mean , gp_lower, gp_upper = preds.marginals()
+                gp_std = (gp_upper - gp_mean) / 2
+                
+                if args.model in ['ANP', 'NP']:
+                    plot_compare_processes_gp_latent(
+                        x_target,
+                        y_target,
+                        x_context,
+                        y_context,
+                        y_target_mu.data.squeeze(),
+                        y_target_sigma.data.squeeze(),
+                        gp_mean,
+                        gp_std,
+                        save=True,
+                        dir=results_dir,
+                        name=name
+                    )
+                else:
+                    y_target_mu = y_target_mu[0].data.squeeze()
+                    y_target_sigma = y_target_sigma[0].data.squeeze()
+                    plot_compare_processes_gp(
+                        x_target,
+                        y_target,
+                        x_context,
+                        y_context,
+                        y_target_mu,
+                        y_target_sigma,
+                        gp_mean,
+                        gp_std,
+                        save=True,
+                        dir=results_dir,
+                        name=name
+                    )
+
+            # refix the seed for the validation set to keep it constant
+            validation_loss = 0       
+
+            # If we have a model with a latent variable, sample a bunch of times to compute 
+            # an accurate validation loss. Esle we only need one pass
+            if args.model in ['ANP', 'NP']:
+                validation_samples = 10
+                for i in range(validation_samples):
+                    _, _, loss, _, _ = model.forward(
+                        x_context_valid, y_context_valid, x_target_valid, y_target_valid
+                    )
+                    validation_loss = validation_loss + loss/validation_samples
+            else:
+                _, _, loss, _, _ = model.forward(
+                        x_context_valid, y_context_valid, x_target_valid, y_target_valid
+                )
+                validation_loss = loss
+            
+            validation_epochs.append(epoch)
+            validation_losses.append(float(validation_loss))
+
+            # print(
+            #     f"Iter: {epoch}, loss: {loss}, x_kernel: {model.kernel_x.length_scale}, rho_kernel: {model.kernel_rho.length_scale}"
+            # )
+
+            print(
+                f"Iter: {epoch}, loss: {validation_loss}"
+            )
+
+            # put back the random state
+            torch.set_rng_state(random_state)
+
+    output = {
+        'args' : args,
+        'epochs' : validation_epochs,
+        'validation_losses' : validation_losses
+    }
+
+    with open(os.path.join(results_dir, results_file_name), 'wb') as h:
+        pickle.dump(output, h)
+
+    torch.save(model.state_dict(), os.path.join(results_dir, model_file_name), pickle_module=pickle, pickle_protocol=pickle.HIGHEST_PROTOCOL)
+
+# Do some nice post hoc validation (should only evaluate the final model)
+
+# first lets plot some model samples
+random_state = torch.get_rng_state()
+for i in range(10):
+    torch.manual_seed(i)
+    # Sample a single GP from the distribution
+    data_test, params = datagen_test.generate_curves()
+    y_context = data_test.query[0][1].contiguous()[0].unsqueeze(0)
+    x_context = data_test.query[0][0].contiguous()[0].unsqueeze(0)
+    x_target = data_test.query[1].contiguous()[0].unsqueeze(0)
+    y_target = data_test.target_y.contiguous()[0].unsqueeze(0)
+
+    # If our model has a latent part, we want to plot many 
+    # samples from the function
     if args.model in ['ANP', 'NP']:
-        y_target_mu, y_target_sigma, loss, log_pred, kl_target_context  = model.forward(
-            x_context, y_context, x_target, y_target
+        y_target_mu = []
+        y_target_sigma = []
+        for j in range(10):
+            y_target_mu_i, y_target_sigma_i, _, _, _ = model.forward(
+                x_context, y_context, x_target, y_target
+            )
+            y_target_mu.append(y_target_mu_i)
+            y_target_sigma.append(y_target_sigma_i)
+
+        y_target_mu = torch.cat(tuple(y_target_mu), dim=0)
+        y_target_sigma = torch.cat(tuple(y_target_sigma), dim=0)
+    # If the function is deterministic, we only want to plot one.
+    else:
+        y_target_mu, y_target_sigma, _, _, _ = model.forward(x_context, y_context, x_target, y_target)
+        y_target_mu = y_target_mu
+        y_target_sigma = y_target_sigma
+
+    # Select only the first element of 
+    y_context = y_context[0].data.squeeze()
+    x_context = x_context[0].data.squeeze()
+    x_target = x_target[0].data.squeeze()
+    y_target = y_target[0].data.squeeze() 
+
+    name = f'trained_model_sample_{i}'
+
+    # Fit the relevent GP to the data
+    if args.GP_type == 'RBF':
+        kernel = EQ().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+    elif args.GP_type == 'Matern':
+        kernel = Matern52().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+
+    f = GP(kernel)
+    e = GP(Delta()) * kernel_noise
+    gp = f + e | (x_context, y_context)
+    preds = gp(x_target)
+    gp_mean , gp_lower, gp_upper = preds.marginals()
+    gp_std = (gp_upper - gp_mean) / 2
+    
+    if args.model in ['ANP', 'NP']:
+        plot_compare_processes_gp_latent(
+            x_target,
+            y_target,
+            x_context,
+            y_context,
+            y_target_mu.data.squeeze(),
+            y_target_sigma.data.squeeze(),
+            gp_mean,
+            gp_std,
+            save=True,
+            dir=results_dir,
+            name=name
         )
     else:
-        y_target_mu, y_target_sigma, loss, _, _ = model.forward(x_context, y_context, x_target, y_target)
-        loss = loss.sum()
-    loss.backward()
-    optimiser.step()
-
-    if epoch % args.test_epoch == 0:
-        # plot some samples
-        # refix the seed
-        random_state = torch.get_rng_state()
-        for i in range(10):
-            torch.manual_seed(i)
-            # Sample a single GP from the distribution
-            data_test, params = datagen_test.generate_curves()
-            y_context = data_test.query[0][1].contiguous()[0].unsqueeze(0)
-            x_context = data_test.query[0][0].contiguous()[0].unsqueeze(0)
-            x_target = data_test.query[1].contiguous()[0].unsqueeze(0)
-            y_target = data_test.target_y.contiguous()[0].unsqueeze(0)
-
-            # If our model has a latent part, we want to plot many 
-            # samples from the function
-            if args.model in ['ANP', 'NP']:
-                y_target_mu = []
-                y_target_sigma = []
-                for j in range(10):
-                    y_target_mu_i, y_target_sigma_i, _, _, _ = model.forward(
-                        x_context, y_context, x_target, y_target
-                    )
-                    y_target_mu.append(y_target_mu_i)
-                    y_target_sigma.append(y_target_sigma_i)
-
-                y_target_mu = torch.cat(tuple(y_target_mu), dim=0)
-                y_target_sigma = torch.cat(tuple(y_target_sigma), dim=0)
-            # If the function is deterministic, we only want to plot one.
-            else:
-                y_target_mu, y_target_sigma, _, _, _ = model.forward(x_context, y_context, x_target, y_target)
-                y_target_mu = y_target_mu
-                y_target_sigma = y_target_sigma
-
-            # Select only the first element of 
-            y_context = y_context[0].data.squeeze()
-            x_context = x_context[0].data.squeeze()
-            x_target = x_target[0].data.squeeze()
-            y_target = y_target[0].data.squeeze() 
-
-            name = f'epoch_{epoch}_sample_{i}'
-
-            # Fit the relevent GP to the data
-            if args.GP_type == 'RBF':
-                kernel = EQ().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
-            elif args.GP_type == 'Matern':
-                kernel = Matern52().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
-
-            f = GP(kernel)
-            e = GP(Delta()) * kernel_noise
-            gp = f + e | (x_context, y_context)
-            preds = gp(x_target)
-            gp_mean , gp_lower, gp_upper = preds.marginals()
-            gp_std = (gp_upper - gp_mean) / 2
-            
-            if args.model in ['ANP', 'NP']:
-                plot_compare_processes_gp_latent(
-                    x_target,
-                    y_target,
-                    x_context,
-                    y_context,
-                    y_target_mu.data.squeeze(),
-                    y_target_sigma.data.squeeze(),
-                    gp_mean,
-                    gp_std,
-                    save=True,
-                    dir=results_dir,
-                    name=name
-                )
-            else:
-                y_target_mu = y_target_mu[0].data.squeeze()
-                y_target_sigma = y_target_sigma[0].data.squeeze()
-                plot_compare_processes_gp(
-                    x_target,
-                    y_target,
-                    x_context,
-                    y_context,
-                    y_target_mu,
-                    y_target_sigma,
-                    gp_mean,
-                    gp_std,
-                    save=True,
-                    dir=results_dir,
-                    name=name
-                )
-
-        # refix the seed for the validation set to keep it constant
-        validation_loss = 0       
-
-        # If we have a model with a latent variable, sample a bunch of times to compute 
-        # an accurate validation loss. Esle we only need one pass
-        if args.model in ['ANP', 'NP']:
-            validation_samples = 10
-            for i in range(validation_samples):
-                _, _, loss, _, _ = model.forward(
-                    x_context_valid, y_context_valid, x_target_valid, y_target_valid
-                )
-                validation_loss = validation_loss + loss/validation_samples
-        else:
-            _, _, loss, _, _ = model.forward(
-                    x_context_valid, y_context_valid, x_target_valid, y_target_valid
-            )
-            validation_loss = loss
-        
-        validation_epochs.append(epoch)
-        validation_losses.append(float(validation_loss))
-
-        # print(
-        #     f"Iter: {epoch}, loss: {loss}, x_kernel: {model.kernel_x.length_scale}, rho_kernel: {model.kernel_rho.length_scale}"
-        # )
-
-        print(
-            f"Iter: {epoch}, loss: {validation_loss}"
+        y_target_mu = y_target_mu[0].data.squeeze()
+        y_target_sigma = y_target_sigma[0].data.squeeze()
+        plot_compare_processes_gp(
+            x_target,
+            y_target,
+            x_context,
+            y_context,
+            y_target_mu,
+            y_target_sigma,
+            gp_mean,
+            gp_std,
+            save=True,
+            dir=results_dir,
+            name=name
         )
 
-        # put back the random state
-        torch.set_rng_state(random_state)
 
-output = {
-    'args' : args,
-    'epochs' : validation_epochs,
-    'validation_losses' : validation_losses
-}
+# now lets plot some model samples but with the input shifted by a factor
+# to test model translation invariance 
+translate_factor = 200
+random_state = torch.get_rng_state()
+for i in range(10):
+    torch.manual_seed(i)
+    # Sample a single GP from the distribution
+    data_test, params = datagen_test.generate_curves()
+    y_context = data_test.query[0][1].contiguous()[0].unsqueeze(0)
+    x_context = data_test.query[0][0].contiguous()[0].unsqueeze(0) + translate_factor
+    x_target = data_test.query[1].contiguous()[0].unsqueeze(0) + translate_factor
+    y_target = data_test.target_y.contiguous()[0].unsqueeze(0) 
 
-with open(os.path.join(results_dir, 'results.pkl'), 'wb') as h:
-    pickle.dump(output, h)
+    # If our model has a latent part, we want to plot many 
+    # samples from the function
+    if args.model in ['ANP', 'NP']:
+        y_target_mu = []
+        y_target_sigma = []
+        for j in range(10):
+            y_target_mu_i, y_target_sigma_i, _, _, _ = model.forward(
+                x_context, y_context, x_target, y_target
+            )
+            y_target_mu.append(y_target_mu_i)
+            y_target_sigma.append(y_target_sigma_i)
 
-torch.save(model.state_dict(), os.path.join(results_dir, 'model.pt'))
+        y_target_mu = torch.cat(tuple(y_target_mu), dim=0)
+        y_target_sigma = torch.cat(tuple(y_target_sigma), dim=0)
+    # If the function is deterministic, we only want to plot one.
+    else:
+        y_target_mu, y_target_sigma, _, _, _ = model.forward(x_context, y_context, x_target, y_target)
+        y_target_mu = y_target_mu
+        y_target_sigma = y_target_sigma
+
+    # Select only the first element of 
+    y_context = y_context[0].data.squeeze()
+    x_context = x_context[0].data.squeeze()
+    x_target = x_target[0].data.squeeze()
+    y_target = y_target[0].data.squeeze() 
+
+    name = f'trained_model_sample_{i}_translated'
+
+    # Fit the relevent GP to the data
+    if args.GP_type == 'RBF':
+        kernel = EQ().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+    elif args.GP_type == 'Matern':
+        kernel = Matern52().stretch(params[0].squeeze()) * (params[1].squeeze() ** 2)
+
+    f = GP(kernel)
+    e = GP(Delta()) * kernel_noise
+    gp = f + e | (x_context, y_context)
+    preds = gp(x_target)
+    gp_mean , gp_lower, gp_upper = preds.marginals()
+    gp_std = (gp_upper - gp_mean) / 2
+    
+    if args.model in ['ANP', 'NP']:
+        plot_compare_processes_gp_latent(
+            x_target,
+            y_target,
+            x_context,
+            y_context,
+            y_target_mu.data.squeeze(),
+            y_target_sigma.data.squeeze(),
+            gp_mean,
+            gp_std,
+            save=True,
+            dir=results_dir,
+            name=name
+        )
+    else:
+        y_target_mu = y_target_mu[0].data.squeeze()
+        y_target_sigma = y_target_sigma[0].data.squeeze()
+        plot_compare_processes_gp(
+            x_target,
+            y_target,
+            x_context,
+            y_context,
+            y_target_mu,
+            y_target_sigma,
+            gp_mean,
+            gp_std,
+            save=True,
+            dir=results_dir,
+            name=name
+        )
+
+
+validation_loss = 0       
+
+# If we have a model with a latent variable, sample a bunch of times to compute 
+# an accurate validation loss. Esle we only need one pass
+if args.model in ['ANP', 'NP']:
+    validation_samples = 10
+    for i in range(validation_samples):
+        _, _, loss, _, _ = model.forward(
+            x_context_valid, y_context_valid, x_target_valid, y_target_valid
+        )
+        validation_loss = validation_loss + loss/validation_samples
+else:
+    _, _, loss, _, _ = model.forward(
+            x_context_valid, y_context_valid, x_target_valid, y_target_valid
+    )
+    validation_loss = loss
+
+with open(os.path.join(results_dir, results_text_file), 'w') as f:
+    f.seek(0)
+    f.write(f'final validation predictive log likelihood : {validation_loss}')
+    f.truncate()

@@ -326,7 +326,7 @@ def plot_compare_processes_gp(
 
     # Make the plot pretty
     plt.yticks([-2, 0, 2], fontsize=16)
-    plt.xticks([-2, 0, 2], fontsize=16)
+    # plt.xticks([-2, 0, 2], fontsize=16)
     plt.ylim([-3, 3])
     plt.grid("off")
     plt.gca()
@@ -415,7 +415,7 @@ def plot_compare_processes_gp_latent(
 
     # Make the plot pretty
     plt.yticks([-2, 0, 2], fontsize=16)
-    plt.xticks([-2, 0, 2], fontsize=16)
+    # plt.xticks([-2, 0, 2], fontsize=16)
     plt.ylim([-3, 3])
     plt.grid("off")
     plt.gca()

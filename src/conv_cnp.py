@@ -229,8 +229,11 @@ class ConvCNP(nn.Module):
             # find the integer that lower and upper bound the min and max of the 
             # target x's in this dimension. Multiplying by 1.1 to give a bit of extra 
             # room
-            x_min_i = torch.floor(torch.min(x_i) * 1.1)
-            x_max_i = torch.ceil(torch.max(x_i) * 1.1)
+            x_min_i = torch.min(x_i)
+            x_max_i = torch.max(x_i)
+            x_range_i = x_max_i - x_min_i
+            x_min_i = torch.floor(x_min_i - 0.1*x_range_i)
+            x_max_i = torch.ceil(x_max_i + 0.1*x_range_i)
 
             # create a uniform linspace
             t_grid_i.append(torch.linspace(x_min_i, x_max_i, int(self.unit_density * (x_max_i - x_min_i))))
