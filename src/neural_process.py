@@ -88,6 +88,7 @@ class AttentiveNeuralProcess(nn.Module):
 
         if self.use_deterministic_path:
             deterministic_representation = self.xyx_to_r(x_context, y_context, x_target)
+            # representation + latent sample
             rep = torch.cat((deterministic_representation, latent_sample), dim=-1)
         else:
             rep = latent_sample

@@ -1,6 +1,7 @@
 import os
 import collections
 
+import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -120,9 +121,9 @@ class BatchMLP(nn.Module):
 
         batch_size, num_points, _ = input.size()
 
-        input = input.view((batch_size * num_points, self.in_dim))
+        input = input.reshape((batch_size * num_points, self.in_dim))
         output = self.model(input)
-        return output.view(batch_size, num_points, self.out_dim)
+        return output.reshape(batch_size, num_points, self.out_dim)
 
 
 def plot_function(

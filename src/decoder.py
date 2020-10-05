@@ -52,8 +52,8 @@ class HeteroskedasticDecoder(nn.Module):
         batch_size, num_points, _ = x.size()
 
         # flatten x and z to be concatenated and passed through the decoder
-        rep = rep.view(batch_size * num_points, self.rep_dim)
-        x = x.view(batch_size * num_points, self.x_dim)
+        rep = rep.reshape((batch_size * num_points, self.rep_dim))
+        x = x.reshape((batch_size * num_points, self.x_dim))
         input = torch.cat((x, rep), dim=1)
 
         # pass the state through the decoder to get output
@@ -62,7 +62,7 @@ class HeteroskedasticDecoder(nn.Module):
         pre_sigma = self.hidden_to_pre_sigma(hidden)
 
         mu = mu.view(batch_size, num_points, self.y_dim)
-        pre_sigma = pre_sigma.view(batch_size, num_points, self.y_dim)
+        pre_sigma = pre_sigma.reshape((batch_size, num_points, self.y_dim))
 
         # Formulation from Attentive Neural Processes, Empirical Evaluation of Neural Process Objectives
         sigma = 0.1 + 0.9 * F.softplus(pre_sigma)
