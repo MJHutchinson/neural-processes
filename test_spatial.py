@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 MAX_NUM_CONTEXT = 400
 MAX_NUM_EXTRA_TARGET = 100
 BATCH_SIZE = 30
-EPOCHS = 5000
-PLOT_AFTER = 499
+EPOCHS = 100000
+PLOT_AFTER = 10000
 
 # CSV names saved wrong way around, need fixing
 xtest = torch.Tensor(pd.read_csv("data/Xtrain.csv").values)
@@ -71,6 +71,7 @@ for epoch in range(EPOCHS):
 
     if epoch % PLOT_AFTER == 0:
         print(f"Iter: {epoch}, loss: {loss}")
+        torch.save(model.state_dict(), f"results/spatial/spatial_{epoch}.pt")
         model.eval()
         with torch.no_grad():
             y_pred, y_target_sigma, _, _, _ = model.forward(
@@ -79,7 +80,7 @@ for epoch in range(EPOCHS):
                 xtest.unsqueeze(0).to(device)
             )
             print(
-                f"Test {epoch} RMSE Loss: {(y_pred.cpu().view(-1) - ytest.view(-1)).mean().sqrt()}"
+                f"Test {epoch} RMSE Loss: {(y_pred.cpu().view(-1) - ytest.view(-1)).pow(2).mean()}"
             )
         plt.figure()
         plt.plot(ytest.view(-1).data, ytest.view(-1).data, linewidth=2)
