@@ -21,7 +21,8 @@ class SpatialDataset:
         max_num_extra_target,
         x_size=2,
         y_size=1,
-        l1_scale=0.6,
+        l1_size=1,
+        l1_scale=1,
         nu=1.5,
         sigma_scale=1.0,
         random_kernel_parameters=True,
@@ -37,6 +38,7 @@ class SpatialDataset:
         self._x_size = x_size
         self._y_size = y_size
         self._random_kernel_parameters = random_kernel_parameters
+        self._l1_size = l1_size
         self._l1_scale = l1_scale
         self._sigma_scale = sigma_scale
         self.nu = nu
@@ -51,7 +53,7 @@ class SpatialDataset:
             self._random_kernel_parameters,
             self._batch_size,
             self._y_size,
-            self._x_size,
+            self._l1_size,
             self._l1_scale,
             self._sigma_scale,
         )
