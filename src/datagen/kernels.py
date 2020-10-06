@@ -64,7 +64,7 @@ def matern_kernel(xdata, nu, l1, sigma_f, sigma_noise=2e-2):
     diff = xdata1 - xdata2  # [B, num_total_points, num_total_points, x_size]
 
     # [B, data_size, num_total_points, num_total_points]
-    norm = diff[:, None, :, :, :].norm(dim=-1) / l1[:, :, None, :]
+    norm = (diff[:, None, :, :, :] / l1[:, :, None, None, :]).norm(dim=-1)
 
     if nu == 0.5:
         # [B, y_size, num_total_points, num_total_points]
